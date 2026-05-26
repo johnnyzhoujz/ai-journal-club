@@ -5,6 +5,8 @@ or include a data dump.
 
 ## Apply Schema
 
+Vercel deploys run this automatically through `npm run vercel:build`.
+
 Set `DATABASE_URL_UNPOOLED` or `DATABASE_URL`, then run:
 
 ```bash

@@ -4,7 +4,7 @@ AI Journal Club is an open-source Next.js app for collecting AI research sources
 generating daily digests, searching the archive, and discussing a digest with a
 realtime audio briefing.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&env=ANTHROPIC_API_KEY%2COPENAI_API_KEY%2CX_BEARER_TOKEN%2CSUPADATA_API_KEY%2CCRON_SECRET%2CAUTH_PASSWORD%2CAUTH_SESSION_SECRET&envDescription=AI+Journal+Club+needs+provider+keys+plus+app+auth+secrets.+Neon+can+provision+DATABASE_URL+and+DATABASE_URL_UNPOOLED+through+the+Vercel+integration.+See+docs%2FENVIRONMENT.md.&envLink=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&skippable-integrations=1)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&env=ANTHROPIC_API_KEY%2COPENAI_API_KEY%2CCRON_SECRET%2CAUTH_PASSWORD%2CAUTH_SESSION_SECRET&envDescription=AI+Journal+Club+needs+required+AI+provider+keys+plus+app+auth+secrets.+Neon+can+provision+DATABASE_URL+and+DATABASE_URL_UNPOOLED+through+the+Vercel+integration.+See+docs%2FENVIRONMENT.md.&envLink=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&skippable-integrations=1)
 
 ## Features
 
@@ -54,15 +54,17 @@ Sources to finish configuration.
 
 The Vercel button clones this repo and requests the required provider secrets. It
 also requests the Neon native storage integration, which can provision
-`DATABASE_URL` and `DATABASE_URL_UNPOOLED` for the project. If you skip the
-integration, create a Neon project manually and add those variables yourself.
+`DATABASE_URL` and `DATABASE_URL_UNPOOLED` for the project. Vercel runs
+`npm run db:setup` automatically during deployment before `next build`, so a new
+Neon database is bootstrapped with an empty schema on first deploy. If you skip
+the integration, create a Neon project manually and add those variables yourself
+before deploying.
 
-After the first deploy, run the schema setup once from a trusted machine:
+For local development against that Vercel project, pull the same environment
+variables:
 
 ```bash
 vercel env pull .env.local
-npm ci
-npm run db:setup
 ```
 
 See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) and
