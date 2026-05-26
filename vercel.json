@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/fetch",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/hydrate-papers",
+      "schedule": "20 8 * * *"
+    },
+    {
+      "path": "/api/enrich-papers",
+      "schedule": "40 8 * * *"
+    },
+    {
+      "path": "/api/digest?requireReady=true",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
