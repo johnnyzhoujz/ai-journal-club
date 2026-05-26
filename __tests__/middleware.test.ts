@@ -54,6 +54,28 @@ describe("auth cookie round-trip", () => {
     expect(res.headers.get("location")).toContain("/login");
   });
 
+  it("middleware lets first-deploy users reach Initial Setup when auth is not configured", async () => {
+    delete process.env.AUTH_PASSWORD;
+    delete process.env.AUTH_SESSION_SECRET;
+
+    const req = new NextRequest("http://localhost:3000/setup");
+    const res = await middleware(req);
+
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("middleware redirects protected pages to setup when auth is not configured", async () => {
+    delete process.env.AUTH_PASSWORD;
+    delete process.env.AUTH_SESSION_SECRET;
+
+    const req = new NextRequest("http://localhost:3000/sources");
+    const res = await middleware(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/setup");
+  });
+
   it("middleware rejects tampered auth cookies from the login format", async () => {
     const token = await createAuthSessionToken();
     const [payload] = token.split(".");

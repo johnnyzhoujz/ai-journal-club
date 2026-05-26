@@ -1,12 +1,17 @@
 import { sql } from "@/lib/db";
 import { DashboardActions } from "@/components/dashboard-actions";
 import { DashboardDigest } from "@/components/dashboard-digest";
-import { OnboardingPanel } from "@/components/onboarding-panel";
+import { InitialSetupPage } from "@/components/initial-setup-page";
+import { isRuntimeConfigured } from "@/lib/app-config";
 import type { Digest } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  if (!isRuntimeConfigured()) {
+    return <InitialSetupPage />;
+  }
+
   try {
     const [digestRows, sourceRows, fetchedRows, archiveRows] =
       await Promise.all([
@@ -23,7 +28,6 @@ export default async function Home() {
 
     return (
       <main className="mx-auto max-w-5xl w-full px-4 py-8">
-        <OnboardingPanel />
         <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
@@ -60,14 +64,6 @@ export default async function Home() {
     );
   } catch (error) {
     console.error("Dashboard failed to load:", error);
-    return (
-      <main className="mx-auto max-w-5xl w-full px-4 py-8">
-        <OnboardingPanel />
-        <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-        <p className="text-destructive">
-          Failed to load dashboard data. Please try again later.
-        </p>
-      </main>
-    );
+    return <InitialSetupPage />;
   }
 }

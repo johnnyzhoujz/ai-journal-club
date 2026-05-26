@@ -20,10 +20,12 @@ function makeRequest(
 
 describe("middleware", () => {
   beforeEach(() => {
+    process.env.AUTH_PASSWORD = "test-password";
     process.env.AUTH_SESSION_SECRET = "test-session-secret";
   });
 
   afterEach(() => {
+    delete process.env.AUTH_PASSWORD;
     delete process.env.AUTH_SESSION_SECRET;
   });
 
@@ -69,6 +71,23 @@ describe("middleware", () => {
     const res = await middleware(makeRequest("/digests"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login");
+  });
+
+  it("allows initial setup when auth is not configured", async () => {
+    delete process.env.AUTH_PASSWORD;
+    delete process.env.AUTH_SESSION_SECRET;
+
+    const res = await middleware(makeRequest("/setup"));
+    expect(res.status).toBe(200);
+  });
+
+  it("redirects protected pages to setup when auth is not configured", async () => {
+    delete process.env.AUTH_PASSWORD;
+    delete process.env.AUTH_SESSION_SECRET;
+
+    const res = await middleware(makeRequest("/digests"));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/setup");
   });
 
   // -- Unauthenticated API requests return 401 ---------------------------------

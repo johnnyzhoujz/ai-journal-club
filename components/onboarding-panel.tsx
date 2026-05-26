@@ -1,8 +1,6 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "ai-journal-club:onboarding-dismissed";
 const STORAGE_EVENT = "ai-journal-club:onboarding-storage";
@@ -10,33 +8,24 @@ let generatedCronSecret: string | null = null;
 
 const requiredItems = [
   {
-    name: "Neon database",
-    value: "DATABASE_URL / DATABASE_URL_UNPOOLED",
-    detail:
-      "Stores sources, fetched items, generated digests, paper evidence, and briefing memory. If you used Vercel's Neon integration, these may already be added to Vercel.",
-  },
-  {
     name: "Anthropic",
     value: "ANTHROPIC_API_KEY",
-    detail: "Generates daily digests, research answers, deep dives, and synthesis.",
+    detail: "Reads papers and populates the evidence used by digests and answers.",
   },
   {
     name: "OpenAI",
     value: "OPENAI_API_KEY",
-    detail:
-      "Required for realtime audio briefings and embedding-backed memory features.",
+    detail: "Powers the realtime voice agent and audio journal club experience.",
   },
   {
     name: "Cron protection",
     value: "CRON_SECRET",
-    detail:
-      "Protects scheduled worker endpoints. Use the generated value below in Vercel; Vercel Cron sends it as a Bearer authorization header.",
+    detail: "Protects the scheduled worker endpoints that fetch and process content.",
   },
   {
-    name: "App login",
+    name: "Login password",
     value: "AUTH_PASSWORD / AUTH_SESSION_SECRET",
-    detail:
-      "Sets the login password and signs session cookies. Use a generated random value for AUTH_SESSION_SECRET.",
+    detail: "Sets the password you use to log into your own deployed app.",
   },
 ];
 
@@ -49,7 +38,7 @@ const optionalItems = [
   {
     name: "Supadata",
     value: "SUPADATA_API_KEY",
-    detail: "Enables YouTube and podcast transcript ingestion.",
+    detail: "Enables YouTube, playlist, podcast, and transcript ingestion.",
   },
 ];
 
@@ -65,11 +54,6 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
     () => (alwaysOpen ? false : true),
   );
 
-  function dismiss() {
-    localStorage.setItem(STORAGE_KEY, "true");
-    window.dispatchEvent(new Event(STORAGE_EVENT));
-  }
-
   if (dismissed) {
     return null;
   }
@@ -80,28 +64,18 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
       aria-labelledby="setup-heading"
       data-testid="onboarding-panel"
     >
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-muted-foreground">Setup</p>
+      <div>
+        <div>
           <h2 id="setup-heading" className="mt-1 text-2xl font-semibold">
             Add your credentials in Vercel
           </h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Add these under Environment Variables for this Vercel project. After
-            Vercel has the Neon database URLs and required secrets, deployment
-            runs the database setup automatically. Then sign in and add sources
-            before fetching content.
+            After the first Vercel deployment creates your project and Neon
+            database, add these under Environment Variables, then redeploy once.
+            After that, sign in, wait for papers to populate, and listen to your
+            journal club. You can add extra sources later, but you do not have to.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Dismiss setup"
-          onClick={dismiss}
-        >
-          <X aria-hidden="true" />
-        </Button>
       </div>
 
       <div className="mt-5">
