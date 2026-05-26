@@ -82,14 +82,14 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
     >
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-muted-foreground">First run</p>
+          <p className="text-sm font-medium text-muted-foreground">Setup</p>
           <h2 id="setup-heading" className="mt-1 text-2xl font-semibold">
-            Connect your journal club workspace
+            Add your credentials in Vercel
           </h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Add these as Vercel Environment Variables for the deployed project.
-            After Vercel has the database URLs and secrets, pull the env locally
-            and run the database setup before fetching content.
+            Add these under Environment Variables for this Vercel project. After
+            Vercel has the database URLs and secrets, pull the env locally and
+            run the database setup before fetching content.
           </p>
         </div>
         <Button

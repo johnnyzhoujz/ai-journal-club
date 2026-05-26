@@ -28,7 +28,8 @@ describe("OnboardingPanel", () => {
   it("shows first-run credential guidance", async () => {
     render(<OnboardingPanel />);
 
-    expect(await screen.findByText("First run")).toBeInTheDocument();
+    expect(await screen.findByText("Setup")).toBeInTheDocument();
+    expect(screen.getByText("Add your credentials in Vercel")).toBeInTheDocument();
     expect(screen.getByText("DATABASE_URL / DATABASE_URL_UNPOOLED")).toBeInTheDocument();
     expect(screen.getByText("ANTHROPIC_API_KEY")).toBeInTheDocument();
     expect(screen.getByText("OPENAI_API_KEY")).toBeInTheDocument();
@@ -43,7 +44,7 @@ describe("OnboardingPanel", () => {
       /^ajc_cron_[A-Za-z0-9_-]{48}$/,
     );
     expect(
-      screen.getByText(/Add these as Vercel Environment Variables/i),
+      screen.getByText(/Add these under Environment Variables for this Vercel project/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /add sources/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /open setup guide/i })).not.toBeInTheDocument();
