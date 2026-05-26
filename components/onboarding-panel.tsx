@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 const STORAGE_KEY = "ai-journal-club:onboarding-dismissed";
 const STORAGE_EVENT = "ai-journal-club:onboarding-storage";
 let generatedCronSecret: string | null = null;
+let generatedAuthSessionSecret: string | null = null;
 
 const requiredItems = [
   {
@@ -18,14 +19,24 @@ const requiredItems = [
     detail: "Powers the realtime voice agent and audio journal club experience.",
   },
   {
+    name: "Login password",
+    value: "AUTH_PASSWORD",
+    detail: "Sets the password you use to log into your own deployed app.",
+  },
+];
+
+const generatedItems = [
+  {
+    name: "Session signing",
+    value: "AUTH_SESSION_SECRET",
+    detail: "Signs login cookies. Paste the generated value into Vercel and keep it secret.",
+    prefix: "ajc_session",
+  },
+  {
     name: "Cron protection",
     value: "CRON_SECRET",
     detail: "Protects the scheduled worker endpoints that fetch and process content.",
-  },
-  {
-    name: "Login password",
-    value: "AUTH_PASSWORD / AUTH_SESSION_SECRET",
-    detail: "Sets the password you use to log into your own deployed app.",
+    prefix: "ajc_cron",
   },
 ];
 
@@ -46,6 +57,11 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
   const cronSecret = useSyncExternalStore(
     subscribeToGeneratedSecret,
     getGeneratedCronSecretSnapshot,
+    () => "",
+  );
+  const authSessionSecret = useSyncExternalStore(
+    subscribeToGeneratedSecret,
+    getGeneratedAuthSessionSecretSnapshot,
     () => "",
   );
   const dismissed = useSyncExternalStore(
@@ -70,23 +86,36 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
             Add your credentials in Vercel
           </h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            The deploy form asks for these values. If this page appears after
-            deployment, one is missing or empty in Vercel Project Settings. Add
-            it, redeploy, then sign in and choose sources for your journal club.
+            Add these values in Vercel Project Settings after the first deploy,
+            then redeploy once. The app shows this page before login so you can
+            copy the generated app secrets and add everything in one pass.
           </p>
         </div>
       </div>
 
       <div className="mt-5">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Required
+          Values to provide
         </h3>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {requiredItems.map((item) => (
+            <CredentialItem key={item.value} item={item} />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Generated values to add after first deploy
+        </h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {generatedItems.map((item) => (
             <CredentialItem
               key={item.value}
               item={item}
-              generatedValue={item.value === "CRON_SECRET" ? cronSecret : undefined}
+              generatedValue={
+                item.value === "AUTH_SESSION_SECRET" ? authSessionSecret : cronSecret
+              }
             />
           ))}
         </div>
@@ -127,7 +156,10 @@ function CredentialItem({
           <p className="text-xs font-medium text-muted-foreground">
             Generated value to paste into Vercel
           </p>
-          <code className="mt-1 block break-all text-xs" data-testid="generated-cron-secret">
+          <code
+            className="mt-1 block break-all text-xs"
+            data-testid={`generated-${item.value.toLowerCase().replaceAll("_", "-")}`}
+          >
             {generatedValue || "Generating..."}
           </code>
         </div>
@@ -165,6 +197,14 @@ function getGeneratedCronSecretSnapshot() {
   }
   generatedCronSecret ??= generateSecret("ajc_cron");
   return generatedCronSecret;
+}
+
+function getGeneratedAuthSessionSecretSnapshot() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  generatedAuthSessionSecret ??= generateSecret("ajc_session");
+  return generatedAuthSessionSecret;
 }
 
 function generateSecret(prefix: string) {
