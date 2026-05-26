@@ -330,7 +330,7 @@ describe("memory retrieval", () => {
     mockSql.mockResolvedValueOnce([]);
 
     await searchMemoryForTool({
-      query: "Philipp Herzig SAP podcast",
+      query: "Mira Chen Acme podcast",
       source: "podcast",
       after: "2026-04-01",
       before: "2026-04-23",
@@ -380,26 +380,26 @@ describe("memory retrieval", () => {
   });
 
   it("classifies metadata and attribution intents and extracts exact entity terms", () => {
-    expect(classifyMemoryQueryIntent("Philipp Herzig CTO SAP podcast")).toBe(
+    expect(classifyMemoryQueryIntent("Mira Chen CTO Acme podcast")).toBe(
       "metadata",
     );
-    expect(classifyMemoryQueryIntent("who said GBrain needs OpenClaw memory")).toBe(
+    expect(classifyMemoryQueryIntent("who said VectorForge needs MemoryLens memory")).toBe(
       "attribution",
     );
     expect(
-      extractSignificantExactTerms("GBrain OpenClaw Hermes Philipp Herzig SAP AI"),
-    ).toEqual(["gbrain", "openclaw", "hermes", "philipp", "herzig", "sap"]);
+      extractSignificantExactTerms("VectorForge MemoryLens EvalKit Mira Chen Acme AI"),
+    ).toEqual(["vectorforge", "memorylens", "evalkit", "mira", "chen", "acme"]);
   });
 
   it("boosts parent items with higher exact-token coverage", () => {
-    const exactTerms = ["gbrain", "openclaw", "hermes"];
+    const exactTerms = ["vectorforge", "memorylens", "evalkit"];
     const parents = rankMemoryParentCandidates({
       chunkRows: [],
       feedItemRows: [
         {
           feed_item_id: 1,
           source_type: "paper",
-          title: "OpenClaw memory",
+          title: "MemoryLens memory",
           author_name: "Research Team",
           published_at: null,
           url: "https://example.com/paper",
@@ -412,7 +412,7 @@ describe("memory retrieval", () => {
         {
           feed_item_id: 2,
           source_type: "paper",
-          title: "GBrain OpenClaw Hermes",
+          title: "VectorForge MemoryLens EvalKit",
           author_name: "Builder",
           published_at: null,
           url: "https://example.com/tweet",
@@ -697,7 +697,7 @@ describe("memory retrieval", () => {
           source_type: "newsletter",
           title: "Knowledge wiki memory",
           author_name: "Builder Weekly",
-          text: "A generic newsletter that mentions GBrain and OpenClaw in a broader knowledge wiki memory roundup.",
+          text: "A generic newsletter that mentions VectorForge and MemoryLens in a broader knowledge wiki memory roundup.",
         }),
       ])
       .mockResolvedValueOnce([])
@@ -709,7 +709,7 @@ describe("memory retrieval", () => {
           source_type: "tweet",
           title: null,
           author_name: "Builder",
-          text: "GBrain and OpenClaw are personal AI knowledge wiki memory product names with opinions from builders.",
+          text: "VectorForge and MemoryLens are fictional AI knowledge wiki memory product names with opinions from builders.",
         }),
         memoryRow({
           id: 1485,
@@ -717,7 +717,7 @@ describe("memory retrieval", () => {
           source_type: "tweet",
           title: null,
           author_name: "Builder",
-          text: "OpenClaw and GBrain connect agent memory to a knowledge wiki.",
+          text: "MemoryLens and VectorForge connect agent memory to a knowledge wiki.",
         }),
       ])
       .mockResolvedValueOnce([])
@@ -729,7 +729,7 @@ describe("memory retrieval", () => {
           source_type: "tweet",
           title: null,
           author_name: "Builder",
-          text: "Builders said GBrain and OpenClaw are about agent memory and a knowledge wiki.",
+          text: "Builders said VectorForge and MemoryLens are about agent memory and a knowledge wiki.",
         }),
         memoryRow({
           id: 1485,
@@ -737,14 +737,14 @@ describe("memory retrieval", () => {
           source_type: "tweet",
           title: null,
           author_name: "Builder",
-          text: "OpenClaw and GBrain are product names for personal AI memory.",
+          text: "MemoryLens and VectorForge are fictional product names for AI memory.",
         }),
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const result = await searchMemoryForTool({
-      query: "knowledge wiki agent memory opinions about GBrain and OpenClaw",
+      query: "knowledge wiki agent memory opinions about VectorForge and MemoryLens",
       limit: 3,
     });
     const chunkResults = result.results.filter((hit) => hit.kind === "chunk");

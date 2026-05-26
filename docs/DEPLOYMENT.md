@@ -4,15 +4,12 @@
 
 Use the README deploy button to clone the repository into your own Git provider
 and create a Vercel project. The button requests the Neon native storage
-integration with the `neon` product. That integration can provision Postgres and
-inject `DATABASE_URL` and `DATABASE_URL_UNPOOLED`.
+integration with the `neon` product. That integration provisions Postgres and
+injects `DATABASE_URL` and `DATABASE_URL_UNPOOLED` before the Vercel build runs.
 
 The deploy form only asks you to accept Neon and leave the default
 research-memory and paper-evidence flags pre-filled as `true`. The app values
 are added after the first deploy from the setup page.
-
-If you skip the integration, create a Neon Postgres project manually and add both
-database URLs in Vercel Project Settings before redeploying.
 
 ## First Deploy
 
@@ -30,8 +27,8 @@ database URLs in Vercel Project Settings before redeploying.
 
 The setup script applies every SQL file in `db/migrations` in order. It is
 idempotent, so future deploys can run it again without importing sample data or
-past digests. A deploy fails early if neither `DATABASE_URL_UNPOOLED` nor
-`DATABASE_URL` is available in the Vercel build environment.
+past digests. On the one-click path, Neon supplies the database values; the setup
+page intentionally asks only for app credentials after deployment.
 
 For local development against the same project, pull environment variables:
 
