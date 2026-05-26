@@ -44,7 +44,7 @@ describe("OnboardingPanel", () => {
       /^ajc_cron_[A-Za-z0-9_-]{48}$/,
     );
     expect(
-      screen.getByText(/Add these under Environment Variables for this Vercel project/i),
+      screen.getByText(/deployment runs the database setup automatically/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /add sources/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /open setup guide/i })).not.toBeInTheDocument();

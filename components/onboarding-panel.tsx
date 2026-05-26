@@ -88,8 +88,9 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
           </h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
             Add these under Environment Variables for this Vercel project. After
-            Vercel has the database URLs and secrets, pull the env locally and
-            run the database setup before fetching content.
+            Vercel has the Neon database URLs and required secrets, deployment
+            runs the database setup automatically. Then sign in and add sources
+            before fetching content.
           </p>
         </div>
         <Button
