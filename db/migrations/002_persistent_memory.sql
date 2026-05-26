@@ -2,6 +2,8 @@
 -- Phase 1 is lexical-first and does not require pgvector.
 -- If pgvector is already installed, this migration also adds nullable vector columns and indexes.
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE OR REPLACE FUNCTION set_memory_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql

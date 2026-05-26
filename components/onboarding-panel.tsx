@@ -70,10 +70,9 @@ export function OnboardingPanel({ alwaysOpen = false }: { alwaysOpen?: boolean }
             Add your credentials in Vercel
           </h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            After the first Vercel deployment creates your project and Neon
-            database, add these under Environment Variables, then redeploy once.
-            After that, sign in, wait for papers to populate, and listen to your
-            journal club. You can add extra sources later, but you do not have to.
+            The deploy form asks for these values. If this page appears after
+            deployment, one is missing or empty in Vercel Project Settings. Add
+            it, redeploy, then sign in and choose sources for your journal club.
           </p>
         </div>
       </div>
