@@ -36,6 +36,13 @@ describe("OnboardingPanel", () => {
     expect(screen.getByText("SUPADATA_API_KEY")).toBeInTheDocument();
     expect(screen.getByText("CRON_SECRET")).toBeInTheDocument();
     expect(screen.getByText("AUTH_PASSWORD / AUTH_SESSION_SECRET")).toBeInTheDocument();
+    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(screen.getByText("Optional providers")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Add these as Vercel Environment Variables/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /add sources/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /open setup guide/i })).not.toBeInTheDocument();
   });
 
   it("dismisses once in localStorage", async () => {
