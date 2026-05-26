@@ -34,15 +34,23 @@ describe("OnboardingPanel", () => {
     expect(screen.getByText("X_BEARER_TOKEN")).toBeInTheDocument();
     expect(screen.getByText("SUPADATA_API_KEY")).toBeInTheDocument();
     expect(screen.getByText("CRON_SECRET")).toBeInTheDocument();
-    expect(screen.getByText("AUTH_PASSWORD / AUTH_SESSION_SECRET")).toBeInTheDocument();
-    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(screen.getByText("AUTH_PASSWORD")).toBeInTheDocument();
+    expect(screen.getByText("AUTH_SESSION_SECRET")).toBeInTheDocument();
+    expect(screen.getByText("Values to provide")).toBeInTheDocument();
+    expect(
+      screen.getByText("Generated values to add after first deploy"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Optional ingestion providers")).toBeInTheDocument();
     expect(await screen.findByText(/^ajc_cron_/)).toBeInTheDocument();
+    expect(await screen.findByText(/^ajc_session_/)).toBeInTheDocument();
     expect(screen.getByTestId("generated-cron-secret").textContent).toMatch(
       /^ajc_cron_[A-Za-z0-9_-]{48}$/,
     );
+    expect(screen.getByTestId("generated-auth-session-secret").textContent).toMatch(
+      /^ajc_session_[A-Za-z0-9_-]{48}$/,
+    );
     expect(
-      screen.getByText(/The deploy form asks for these values/i),
+      screen.getByText(/Add these values in Vercel Project Settings after the first deploy/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /add sources/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /open setup guide/i })).not.toBeInTheDocument();

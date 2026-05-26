@@ -6,7 +6,7 @@ keys, choose your sources, and let the app build a living archive of papers,
 digests, and voice-ready context.
 
 <p>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&env=ANTHROPIC_API_KEY%2COPENAI_API_KEY%2CAUTH_PASSWORD%2CAUTH_SESSION_SECRET%2CCRON_SECRET%2CPAPER_SEMANTIC_ENRICHMENT_ENABLED%2CMEMORY_VECTOR_ENABLED%2CMEMORY_CHUNK_WRITES_ENABLED%2CMEMORY_READS_ENABLED%2CPAPER_EVIDENCE_LAYER_ENABLED&envDefaults=%7B%22PAPER_SEMANTIC_ENRICHMENT_ENABLED%22%3A%22true%22%2C%22MEMORY_VECTOR_ENABLED%22%3A%22true%22%2C%22MEMORY_CHUNK_WRITES_ENABLED%22%3A%22true%22%2C%22MEMORY_READS_ENABLED%22%3A%22true%22%2C%22PAPER_EVIDENCE_LAYER_ENABLED%22%3A%22true%22%7D&envDescription=Add+your+Anthropic+and+OpenAI+keys%2C+choose+a+login+password%2C+and+paste+long+random+values+for+the+two+secrets.+Leave+the+prefilled+defaults+as-is.&envLink=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md">
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&env=PAPER_SEMANTIC_ENRICHMENT_ENABLED%2CMEMORY_VECTOR_ENABLED%2CMEMORY_CHUNK_WRITES_ENABLED%2CMEMORY_READS_ENABLED%2CPAPER_EVIDENCE_LAYER_ENABLED&envDefaults=%7B%22PAPER_SEMANTIC_ENRICHMENT_ENABLED%22%3A%22true%22%2C%22MEMORY_VECTOR_ENABLED%22%3A%22true%22%2C%22MEMORY_CHUNK_WRITES_ENABLED%22%3A%22true%22%2C%22MEMORY_READS_ENABLED%22%3A%22true%22%2C%22PAPER_EVIDENCE_LAYER_ENABLED%22%3A%22true%22%7D&envDescription=Accept+Neon+and+deploy.+The+first+setup+page+will+show+the+app+environment+variables+to+add+in+one+pass.&envLink=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md">
     <img src="https://vercel.com/button" alt="Deploy with Vercel" width="220" />
   </a>
 </p>
@@ -32,19 +32,25 @@ Click **Deploy with Vercel** and accept the Neon database integration. Vercel
 creates the project, provisions Postgres, runs the database setup, and installs
 the scheduled jobs.
 
-The only values you should need to fill yourself are:
+The deploy form only asks you to accept Neon and leave the pre-filled defaults as
+`true`. You do not need to paste API keys or app secrets before the first
+deployment.
+
+After the first deployment finishes, open the Vercel URL. The setup page shows
+the values to add in Vercel Project Settings:
 
 | Value | Use |
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Digests, deep dives, paper synthesis, and semantic enrichment. |
 | `OPENAI_API_KEY` | Realtime voice briefing and embeddings. |
 | `AUTH_PASSWORD` | The password for your app's login screen. |
-| `AUTH_SESSION_SECRET` | A long random value for signing login cookies. |
-| `CRON_SECRET` | A long random value that protects scheduled worker endpoints. |
+| `AUTH_SESSION_SECRET` | Signs login cookies. |
+| `CRON_SECRET` | Protects scheduled worker endpoints. |
 
-After the deployment finishes, open the Vercel URL, sign in with
-`AUTH_PASSWORD`, and add sources. The app starts with an empty database and fills
-it from the sources you choose.
+The setup page generates `AUTH_SESSION_SECRET` and `CRON_SECRET` for you. Add
+all five values in Vercel, redeploy once, then sign in with `AUTH_PASSWORD` and
+add sources. The app starts with an empty database and fills it from the sources
+you choose.
 
 Optional source keys can be added later in Vercel Project Settings:
 
