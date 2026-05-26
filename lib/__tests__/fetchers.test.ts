@@ -1486,10 +1486,7 @@ describe("fetchPapersContent", () => {
     vi.resetModules();
     vi.doMock("../fetchers/paper-full-text", () => ({
       fetchPaperFullText: vi.fn().mockResolvedValue(null),
-      pLimit:
-        (_n: number) =>
-        <T>(fn: () => Promise<T>) =>
-          fn(),
+      pLimit: () => <T>(fn: () => Promise<T>) => fn(),
     }));
   });
 
@@ -1580,10 +1577,7 @@ describe("fetchPapersContent", () => {
     const helperMock = vi.fn();
     vi.doMock("../fetchers/paper-full-text", () => ({
       fetchPaperFullText: helperMock,
-      pLimit:
-        (_n: number) =>
-        <T>(fn: () => Promise<T>) =>
-          fn(),
+      pLimit: () => <T>(fn: () => Promise<T>) => fn(),
     }));
 
     const { fetchPapersContent } = await import("../fetchers/papers");
@@ -1784,10 +1778,7 @@ describe("fetchPapersContent", () => {
     );
     vi.doMock("../fetchers/paper-full-text", () => ({
       fetchPaperFullText: helperMock,
-      pLimit:
-        (_n: number) =>
-        <T>(fn: () => Promise<T>) =>
-          fn(),
+      pLimit: () => <T>(fn: () => Promise<T>) => fn(),
     }));
 
     const { fetchPapersContent } = await import("../fetchers/papers");
@@ -2016,10 +2007,7 @@ describe("fetchAlphaxivContent", () => {
     vi.resetModules();
     vi.doMock("../fetchers/paper-full-text", () => ({
       fetchPaperFullText: vi.fn().mockResolvedValue(null),
-      pLimit:
-        (_n: number) =>
-        <T>(fn: () => Promise<T>) =>
-          fn(),
+      pLimit: () => <T>(fn: () => Promise<T>) => fn(),
     }));
   });
 
@@ -2240,10 +2228,7 @@ describe("fetchAlphaxivContent", () => {
       fetchPaperFullText: vi
         .fn()
         .mockResolvedValueOnce({ text: "BODY", source: "arxiv_html" }),
-      pLimit:
-        (_n: number) =>
-        <T>(fn: () => Promise<T>) =>
-          fn(),
+      pLimit: () => <T>(fn: () => Promise<T>) => fn(),
     }));
 
     const mockFetch = vi.fn().mockResolvedValueOnce({

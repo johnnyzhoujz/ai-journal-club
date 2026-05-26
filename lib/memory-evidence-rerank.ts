@@ -389,5 +389,9 @@ export function rerankEvidenceChunksForClaim({
       }
       return a.__stableIndex - b.__stableIndex;
     })
-    .map(({ __stableIndex: _stableIndex, ...hit }) => hit);
+    .map((hit) => {
+      const { __stableIndex, ...rerankedHit } = hit;
+      void __stableIndex;
+      return rerankedHit;
+    });
 }

@@ -104,7 +104,7 @@ source, or a date range. Use `author`, `source`, `after`, `before`,
 whole month, set `after` to the first day and `before` to the last day of
 that month, not the first day of the next month.
 Do not use this for broad named-person/entity lookup such as "search the
-archive for Philipp Herzig"; use `search_archive` for that.
+archive for Mira Chen"; use `search_archive` for that.
 
 ## search_archive
 Use when the user names a specific item by title, asks for metadata about a
