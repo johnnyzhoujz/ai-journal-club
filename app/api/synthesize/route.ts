@@ -1,4 +1,3 @@
-// TODO: add authentication
 import Anthropic from "@anthropic-ai/sdk";
 import { RESEARCH_ANSWER } from "@/lib/prompts";
 
