@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { neon } from "@neondatabase/serverless";
+import { splitSqlStatements } from "./sql-statements";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "db", "migrations");
 
@@ -60,8 +61,18 @@ async function main() {
 
   for (const file of migrationFiles) {
     const sqlText = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
+    const statements = splitSqlStatements(sqlText);
     console.log(`Applying ${file}`);
-    await sql.query(sqlText);
+    for (const [index, statement] of statements.entries()) {
+      try {
+        await sql.query(statement);
+      } catch (error) {
+        throw new Error(
+          `Failed applying ${file} statement ${index + 1}/${statements.length}`,
+          { cause: error },
+        );
+      }
+    }
   }
 
   const [counts] = await sql.query(

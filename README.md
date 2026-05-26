@@ -1,146 +1,77 @@
 # AI Journal Club
 
-AI Journal Club is an open-source Next.js app for collecting AI research sources,
-generating daily digests, searching the archive, and discussing a digest with a
-realtime audio briefing.
+AI Journal Club turns the daily flood of AI papers into a private research
+briefing you can read, search, and talk through. Deploy it once, add your API
+keys, choose your sources, and let the app build a living archive of papers,
+digests, and voice-ready context.
 
 <p>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&skippable-integrations=1">
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&env=ANTHROPIC_API_KEY%2COPENAI_API_KEY%2CAUTH_PASSWORD%2CAUTH_SESSION_SECRET%2CCRON_SECRET%2CPAPER_SEMANTIC_ENRICHMENT_ENABLED%2CMEMORY_VECTOR_ENABLED%2CMEMORY_CHUNK_WRITES_ENABLED%2CMEMORY_READS_ENABLED%2CPAPER_EVIDENCE_LAYER_ENABLED&envDefaults=%7B%22PAPER_SEMANTIC_ENRICHMENT_ENABLED%22%3A%22true%22%2C%22MEMORY_VECTOR_ENABLED%22%3A%22true%22%2C%22MEMORY_CHUNK_WRITES_ENABLED%22%3A%22true%22%2C%22MEMORY_READS_ENABLED%22%3A%22true%22%2C%22PAPER_EVIDENCE_LAYER_ENABLED%22%3A%22true%22%7D&envDescription=Add+your+Anthropic+and+OpenAI+keys%2C+choose+a+login+password%2C+and+paste+long+random+values+for+the+two+secrets.+Leave+the+prefilled+defaults+as-is.&envLink=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md">
     <img src="https://vercel.com/button" alt="Deploy with Vercel" width="220" />
   </a>
 </p>
 
-The deploy button creates your Vercel project and asks Vercel to provision a Neon
-Postgres database. After that first deployment finishes, the app opens to Initial
-Setup until the required environment variables are set and the dashboard can
-load. Add your own environment variable values in Vercel, redeploy once, and the
-app will open to the dashboard.
+## What You Get
 
-## Features
-
-- Audio-first journal club experience: a realtime voice agent walks through the
-  latest AI papers, explains the high-level ideas clearly, and lets you interrupt
-  or ask follow-up questions while it is speaking.
-- Paper deep dives in conversation: ask about a specific result, method,
-  limitation, or related idea and get answers grounded in the papers stored in
-  your own database.
-- Daily digest generation with source counts and archive links.
+- A daily AI research digest that turns papers, newsletters, podcasts, X posts,
+  and videos into one readable briefing.
+- A realtime voice journal club that can explain the latest papers out loud and
+  answer follow-up questions while you interrupt naturally.
+- Paper-grounded deep dives for methods, results, limitations, related work, and
+  "what should I read next?" questions.
+- Persistent research memory, semantic enrichment, and vector search enabled by
+  default on new deployments.
 - Source management for public paper feeds, newsletters, podcasts, X accounts,
-  YouTube channels, and YouTube playlists. X and YouTube ingestion require your
-  own provider API keys.
-- Idempotent schema bootstrap for a new Neon Postgres database.
-- Dedicated Initial Setup page for deployment credentials and source-provider
-  guidance.
+  YouTube channels, and YouTube playlists.
+- One-click Vercel plus Neon deployment with schema setup and scheduled workers
+  handled during deployment.
 
-## One-click Vercel setup
+## One-Click Vercel Setup
 
-The Vercel deploy button handles the infrastructure: it clones the repo into your
-Git provider, creates the Vercel project, connects the Neon integration, and runs
-the database schema setup during the first build. You do not need to create
-tables, cron routes, or a separate database by hand when the Neon integration is
-accepted.
+Click **Deploy with Vercel** and accept the Neon database integration. Vercel
+creates the project, provisions Postgres, runs the database setup, and installs
+the scheduled jobs.
 
-The one manual step is credentials. Vercel needs a project before you can add the
-real secret values that make the app usable. Once deployment succeeds:
+The only values you should need to fill yourself are:
 
-1. Open the deployed app. It should land on Initial Setup, not the dashboard.
-2. Open the newly created Vercel project.
-3. Go to Settings -> Environment Variables.
-4. Add the required variables below.
-5. Redeploy the project so the app can read the new values.
-6. Open the deployed app, sign in with `AUTH_PASSWORD`, and use Sources to choose
-   what should appear in your daily journal club.
-
-Required for the core app:
-
-| Variable | What it does |
+| Value | Use |
 | --- | --- |
-| `DATABASE_URL` | Runtime Neon database URL. Usually created by the Vercel Neon integration. |
-| `DATABASE_URL_UNPOOLED` | Direct Neon database URL for schema setup. Usually created by the Vercel Neon integration. |
-| `AUTH_PASSWORD` | Password for the built-in login screen. |
-| `AUTH_SESSION_SECRET` | Long random secret for signing session cookies. |
-| `CRON_SECRET` | Shared secret Vercel Cron uses when calling scheduled worker endpoints. |
-| `ANTHROPIC_API_KEY` | Digest generation, research answers, deep dives, and paper synthesis. |
-| `OPENAI_API_KEY` | Realtime voice briefing and embedding-backed memory features. |
+| `ANTHROPIC_API_KEY` | Digests, deep dives, paper synthesis, and semantic enrichment. |
+| `OPENAI_API_KEY` | Realtime voice briefing and embeddings. |
+| `AUTH_PASSWORD` | The password for your app's login screen. |
+| `AUTH_SESSION_SECRET` | A long random value for signing login cookies. |
+| `CRON_SECRET` | A long random value that protects scheduled worker endpoints. |
 
-Optional source credentials:
+After the deployment finishes, open the Vercel URL, sign in with
+`AUTH_PASSWORD`, and add sources. The app starts with an empty database and fills
+it from the sources you choose.
 
-| Variable | Add it when you want... |
+Optional source keys can be added later in Vercel Project Settings:
+
+| Value | Add it when you want |
 | --- | --- |
 | `X_BEARER_TOKEN` | X account ingestion and X profile lookup. |
 | `SUPADATA_API_KEY` | YouTube, playlist, podcast, and transcript ingestion. |
 
-Optional feature flags:
+You should not need to create tables, paste database URLs, configure cron jobs,
+or turn on the default research-memory features by hand. Leave the pre-filled
+defaults as `true`.
 
-| Variable | Default |
-| --- | --- |
-| `PAPER_SEMANTIC_ENRICHMENT_ENABLED` | `false` |
-| `MEMORY_VECTOR_ENABLED` | `false` |
+## Local Development
 
-Vercel's deploy button can list environment variable names for users to fill, but
-it cannot safely pass secret values through the URL. This template therefore
-keeps the button focused on creating the project and database, then asks you to
-add values inside your own Vercel project.
-
-## Quick Start
-
-1. Install dependencies.
+You do not need a local checkout to use the deployed app. Local setup is only for
+changing the code.
 
 ```bash
 npm ci
-```
-
-2. Create a local env file.
-
-```bash
-cp env.example .env.local
-```
-
-3. Fill in at least `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
-   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CRON_SECRET`, `AUTH_PASSWORD`, and
-   `AUTH_SESSION_SECRET`.
-
-4. Bootstrap the database.
-
-```bash
-npm run db:setup
-```
-
-5. Start the app.
-
-```bash
+vercel env pull .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`, sign in with `AUTH_PASSWORD`, then use Initial
-Setup and Sources to finish configuration.
+Open `http://localhost:3000` and sign in with the same `AUTH_PASSWORD` from your
+Vercel environment.
 
-## Deploying
-
-The Vercel button clones this repo and requests the Neon native storage
-integration, which can provision `DATABASE_URL` and `DATABASE_URL_UNPOOLED` for
-the project. Vercel runs `npm run db:setup` automatically during deployment
-before `next build`, so a new Neon database is bootstrapped with an empty schema
-on first deploy. If you skip the integration, create a Neon project manually and
-add those variables yourself before redeploying.
-
-For local development against that Vercel project, pull the same environment
-variables:
-
-```bash
-vercel env pull .env.local
-```
-
-See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) and
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details.
-
-## Scheduled Jobs
-
-`vercel.json` registers cron jobs for fetch, paper hydration, semantic enrichment,
-and digest generation. Set `CRON_SECRET`; Vercel sends it to cron endpoints as a
-Bearer authorization header.
-
-## Development
+Useful checks before opening a pull request:
 
 ```bash
 npm test
@@ -150,3 +81,7 @@ npm run build
 
 The repository intentionally contains no private feed snapshots, generated
 digests, deployment URLs, database dumps, or local env files.
+
+See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md),
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and
+[docs/DATABASE.md](docs/DATABASE.md) for operator details.

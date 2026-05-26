@@ -1,59 +1,48 @@
 # Environment
 
-Copy `env.example` to `.env.local` for local development. Do not commit
-`.env.local` or any file containing real secrets.
+The Vercel deploy button creates the project, asks for the user-owned secrets,
+and pre-fills the default feature flags. The Neon integration creates the
+database variables.
 
-For Vercel, deploy the template first so the project and Neon database exist.
-The first deployed app opens to Initial Setup while these values are missing.
-Then open the Vercel project, go to Settings -> Environment Variables, add the
-values below, and redeploy once. Vercel environment variables need real values;
-the deploy button can show variable names, but it cannot safely carry secret
-values in the URL.
+For local development, pull the deployed project values instead of typing them
+by hand:
 
-## Required
+```bash
+vercel env pull .env.local
+```
 
-`DATABASE_URL`
-Pooled Neon Postgres connection string used by the app at runtime.
+Do not commit `.env.local` or any file containing real secrets.
 
-`DATABASE_URL_UNPOOLED`
-Direct Neon Postgres connection string preferred for schema setup and migrations.
-The Vercel Neon integration can create both database variables automatically.
+## User-Provided Values
 
-`ANTHROPIC_API_KEY`
-Used for digest generation, research answers, deep dives, and paper synthesis.
+| Variable | Use |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Digests, research answers, deep dives, paper synthesis, and semantic enrichment. |
+| `OPENAI_API_KEY` | Realtime audio briefings and embeddings. |
+| `AUTH_PASSWORD` | Password for the built-in login screen. |
+| `AUTH_SESSION_SECRET` | Long random value for signing session cookies. |
+| `CRON_SECRET` | Long random value used as `Authorization: Bearer <CRON_SECRET>` for scheduled workers. |
 
-`OPENAI_API_KEY`
-Required for realtime audio briefings and embedding-backed memory features. This
-enables the voice journal club experience where the app can explain the latest
-papers out loud and answer follow-up questions in conversation.
+## Automatic Values
 
-`CRON_SECRET`
-Shared secret for scheduled worker endpoints. Vercel Cron sends this value as
-`Authorization: Bearer <CRON_SECRET>` when it is configured in the project.
+| Variable | Source |
+| --- | --- |
+| `DATABASE_URL` | Created by the Vercel Neon integration. |
+| `DATABASE_URL_UNPOOLED` | Created by the Vercel Neon integration and used for schema setup. |
+| `PAPER_SEMANTIC_ENRICHMENT_ENABLED=true` | Pre-filled by the deploy button. |
+| `MEMORY_VECTOR_ENABLED=true` | Pre-filled by the deploy button. |
+| `MEMORY_CHUNK_WRITES_ENABLED=true` | Pre-filled by the deploy button so new items write searchable memory chunks. |
+| `MEMORY_READS_ENABLED=true` | Pre-filled by the deploy button so voice briefings can use memory search tools. |
+| `PAPER_EVIDENCE_LAYER_ENABLED=true` | Pre-filled by the deploy button so enriched paper evidence is searchable. |
 
-`AUTH_PASSWORD`
-The password for the simple built-in login screen.
+Vercel and Neon may also create provider-specific database variables such as
+`DATABASE_POSTGRES_URL`, `DATABASE_POSTGRES_URL_NON_POOLING`, or
+`DATABASE_NEON_PROJECT_ID`. They can stay in the Vercel project, but this app
+does not read them directly.
 
-`AUTH_SESSION_SECRET`
-Secret used to sign session cookies. Generate a long random value, for example
-with `openssl rand -base64 32`.
+## Optional Source Providers
 
-## Optional Ingestion Credentials
-
-`X_BEARER_TOKEN`
-Optional. Add only if you want X account ingestion and X profile lookup.
-
-`SUPADATA_API_KEY`
-Optional. Add only if you want YouTube, playlist, podcast, and transcript
-ingestion.
-
-## Optional Flags
-
-Most features use sensible defaults. Keep optional flags unset unless you are
-developing or operating that subsystem.
-
-`PAPER_SEMANTIC_ENRICHMENT_ENABLED`
-Set to `true` to let `/api/enrich-papers` perform LLM semantic enrichment.
-
-`MEMORY_VECTOR_ENABLED`
-Set to `true` only after pgvector is available and embeddings have been backfilled.
+| Variable | Add it when you want |
+| --- | --- |
+| `X_BEARER_TOKEN` | X account ingestion and X profile lookup. |
+| `SUPADATA_API_KEY` | YouTube, playlist, podcast, and transcript ingestion. |
