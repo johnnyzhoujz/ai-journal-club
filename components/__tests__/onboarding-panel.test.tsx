@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import { OnboardingPanel } from "../onboarding-panel";
 
 vi.mock("next/link", () => ({
@@ -28,9 +27,8 @@ describe("OnboardingPanel", () => {
   it("shows first-run credential guidance", async () => {
     render(<OnboardingPanel />);
 
-    expect(await screen.findByText("Setup")).toBeInTheDocument();
     expect(screen.getByText("Add your credentials in Vercel")).toBeInTheDocument();
-    expect(screen.getByText("DATABASE_URL / DATABASE_URL_UNPOOLED")).toBeInTheDocument();
+    expect(screen.queryByText("DATABASE_URL / DATABASE_URL_UNPOOLED")).not.toBeInTheDocument();
     expect(screen.getByText("ANTHROPIC_API_KEY")).toBeInTheDocument();
     expect(screen.getByText("OPENAI_API_KEY")).toBeInTheDocument();
     expect(screen.getByText("X_BEARER_TOKEN")).toBeInTheDocument();
@@ -44,22 +42,11 @@ describe("OnboardingPanel", () => {
       /^ajc_cron_[A-Za-z0-9_-]{48}$/,
     );
     expect(
-      screen.getByText(/deployment runs the database setup automatically/i),
+      screen.getByText(/After the first Vercel deployment creates your project/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /add sources/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /open setup guide/i })).not.toBeInTheDocument();
-  });
-
-  it("dismisses once in localStorage", async () => {
-    const user = userEvent.setup();
-    render(<OnboardingPanel />);
-
-    await user.click(await screen.findByRole("button", { name: /dismiss setup/i }));
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("onboarding-panel")).not.toBeInTheDocument();
-    });
-    expect(localStorage.getItem("ai-journal-club:onboarding-dismissed")).toBe("true");
+    expect(screen.queryByRole("button", { name: /dismiss setup/i })).not.toBeInTheDocument();
   });
 
   it("can be forced open from setup page", async () => {

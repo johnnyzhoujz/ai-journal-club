@@ -26,6 +26,15 @@ import Home from "../page";
 import { sql } from "@/lib/db";
 
 const mockSql = sql as unknown as ReturnType<typeof vi.fn>;
+const requiredEnv = {
+  DATABASE_URL: "postgres://example",
+  DATABASE_URL_UNPOOLED: "postgres://example-unpooled",
+  ANTHROPIC_API_KEY: "anthropic-key",
+  OPENAI_API_KEY: "openai-key",
+  CRON_SECRET: "cron-secret",
+  AUTH_PASSWORD: "password",
+  AUTH_SESSION_SECRET: "session-secret",
+};
 
 const sampleDigest = {
   id: 1,
@@ -68,6 +77,7 @@ async function renderPage() {
 describe("Dashboard page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.assign(process.env, requiredEnv);
   });
 
   // -- Stats cards: happy ----------------------------------------------------
@@ -218,11 +228,25 @@ describe("Dashboard page", () => {
 
   // -- Error -----------------------------------------------------------------
 
-  it("shows error state when DB query fails", async () => {
+  it("shows Initial Setup when DB query fails", async () => {
     mockSql.mockRejectedValueOnce(new Error("Connection refused"));
 
     await renderPage();
 
-    expect(screen.getByText(/error|failed/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /initial setup/i, level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/failed to load dashboard/i)).not.toBeInTheDocument();
+  });
+
+  it("shows Initial Setup when required runtime env is missing", async () => {
+    delete process.env.DATABASE_URL;
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("heading", { name: /initial setup/i, level: 1 }),
+    ).toBeInTheDocument();
+    expect(mockSql).not.toHaveBeenCalled();
   });
 });

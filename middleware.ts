@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthConfigured } from "@/lib/app-config";
 import { AUTH_COOKIE_NAME, verifyAuthSessionToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
+const PRE_AUTH_SETUP_PATHS = ["/", "/setup"];
 const CRON_PATHS = [
   "/api/fetch",
   "/api/digest",
@@ -28,6 +30,18 @@ export async function middleware(request: NextRequest) {
     if (request.headers.get("authorization")?.startsWith("Bearer ")) {
       return NextResponse.next();
     }
+  }
+
+  if (!isAuthConfigured()) {
+    if (PRE_AUTH_SETUP_PATHS.includes(pathname)) {
+      return NextResponse.next();
+    }
+
+    if (pathname.startsWith("/api/")) {
+      return Response.json({ error: "Auth is not configured" }, { status: 401 });
+    }
+
+    return NextResponse.redirect(new URL("/setup", request.url));
   }
 
   // Check cookie

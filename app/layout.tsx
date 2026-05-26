@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
+import { isRuntimeConfigured } from "@/lib/app-config";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import "./globals.css";
@@ -25,6 +26,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const showAppNav = isRuntimeConfigured();
+
   return (
     <html
       lang="en"
@@ -36,23 +39,19 @@ export default function RootLayout({
           <nav className="border-b">
             <div className="mx-auto max-w-5xl flex items-center gap-6 px-4 h-14">
               <span className="font-semibold text-lg">AI Journal Club</span>
-              <div className="flex gap-4">
-                <Link href="/" className="text-sm hover:underline">
-                  Dashboard
-                </Link>
-                <Link href="/sources" className="text-sm hover:underline">
-                  Sources
-                </Link>
-                <Link href="/digests" className="text-sm hover:underline">
-                  Digests
-                </Link>
-                <Link href="/research" className="text-sm hover:underline">
-                  Research
-                </Link>
-                <Link href="/setup" className="text-sm hover:underline">
-                  Setup
-                </Link>
-              </div>
+              {showAppNav ? (
+                <div className="flex gap-4">
+                  <Link href="/" className="text-sm hover:underline">
+                    Dashboard
+                  </Link>
+                  <Link href="/sources" className="text-sm hover:underline">
+                    Sources
+                  </Link>
+                  <Link href="/digests" className="text-sm hover:underline">
+                    Digests
+                  </Link>
+                </div>
+              ) : null}
               <div className="ml-auto">
                 <ThemeToggle />
               </div>
