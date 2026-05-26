@@ -31,8 +31,9 @@ npm ci
 cp env.example .env.local
 ```
 
-3. Fill in at least `DATABASE_URL`, `ANTHROPIC_API_KEY`, `CRON_SECRET`,
-   `AUTH_PASSWORD`, and `AUTH_SESSION_SECRET`.
+3. Fill in at least `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
+   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CRON_SECRET`, `AUTH_PASSWORD`, and
+   `AUTH_SESSION_SECRET`.
 
 4. Bootstrap the database.
 

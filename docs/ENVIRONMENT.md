@@ -15,6 +15,9 @@ The Vercel Neon integration can create both database variables automatically.
 `ANTHROPIC_API_KEY`
 Used for digest generation, research answers, deep dives, and paper synthesis.
 
+`OPENAI_API_KEY`
+Required for realtime audio briefings and embedding-backed memory features.
+
 `CRON_SECRET`
 Shared secret for scheduled worker endpoints. Vercel Cron sends this value as
 `Authorization: Bearer <CRON_SECRET>` when it is configured in the project.
@@ -26,16 +29,13 @@ The password for the simple built-in login screen.
 Secret used to sign session cookies. Generate a long random value, for example
 with `openssl rand -base64 32`.
 
-## Feature Credentials
-
-`OPENAI_API_KEY`
-Required for realtime audio briefings and optional embedding-backed memory.
+## Optional Ingestion Credentials
 
 `X_BEARER_TOKEN`
-Required for X account ingestion and X profile lookup.
+Optional. Add only if you want X account ingestion and X profile lookup.
 
 `SUPADATA_API_KEY`
-Required for YouTube and podcast transcript ingestion.
+Optional. Add only if you want YouTube and podcast transcript ingestion.
 
 ## Optional Flags
 

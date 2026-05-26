@@ -37,7 +37,11 @@ describe("OnboardingPanel", () => {
     expect(screen.getByText("CRON_SECRET")).toBeInTheDocument();
     expect(screen.getByText("AUTH_PASSWORD / AUTH_SESSION_SECRET")).toBeInTheDocument();
     expect(screen.getByText("Required")).toBeInTheDocument();
-    expect(screen.getByText("Optional providers")).toBeInTheDocument();
+    expect(screen.getByText("Optional ingestion providers")).toBeInTheDocument();
+    expect(await screen.findByText(/^ajc_cron_/)).toBeInTheDocument();
+    expect(screen.getByTestId("generated-cron-secret").textContent).toMatch(
+      /^ajc_cron_[A-Za-z0-9_-]{48}$/,
+    );
     expect(
       screen.getByText(/Add these as Vercel Environment Variables/i),
     ).toBeInTheDocument();
