@@ -54,12 +54,12 @@ export interface PaperCorpusTierPersistenceResult {
 }
 
 export interface PaperIntakeTierPayload {
-  corpus_tier: Extract<CorpusTier, "archive">;
+  corpus_tier: Extract<CorpusTier, "hot_set">;
   relevance_score: null;
   canon_score: null;
-  hot_set_reason: null;
+  hot_set_reason: string;
   canon_reason: null;
-  archive_reason: string;
+  archive_reason: null;
   ignored_reason: null;
   last_seen_at: string;
   last_scored_at: null;
@@ -360,17 +360,17 @@ export function buildPaperCorpusTierUpdatePayload(
   };
 }
 
-export function buildPaperIntakePendingHotSetPayload(
+export function buildPaperIntakeHotSetPayload(
   referenceDate: string | Date = new Date(),
 ): PaperIntakeTierPayload {
   const selectedAt = safeIso(referenceDate);
   return {
-    corpus_tier: "archive",
+    corpus_tier: "hot_set",
     relevance_score: null,
     canon_score: null,
-    hot_set_reason: null,
+    hot_set_reason: `new selected paper grace window (${PAPER_INTAKE_HOT_SET_GRACE_DAYS} days)`,
     canon_reason: null,
-    archive_reason: `new selected paper pending hot-set readiness (${PAPER_INTAKE_HOT_SET_GRACE_DAYS} day grace window)`,
+    archive_reason: null,
     ignored_reason: null,
     last_seen_at: selectedAt,
     last_scored_at: null,
@@ -380,17 +380,12 @@ export function buildPaperIntakePendingHotSetPayload(
         intakeDefaultTier: "hot_set",
         graceDays: PAPER_INTAKE_HOT_SET_GRACE_DAYS,
         selectedAt,
-        pendingTier: "hot_set",
-        pendingSourceTier: "archive",
-        pendingReviewAction: "intake_to_hot_set",
-        pendingReviewStartedAt: selectedAt,
-        pendingReviewReasons: [
-          `new selected paper grace window (${PAPER_INTAKE_HOT_SET_GRACE_DAYS} days)`,
-        ],
       },
     },
   };
 }
+
+export const buildPaperIntakePendingHotSetPayload = buildPaperIntakeHotSetPayload;
 
 export async function persistPaperCorpusTierMetadata(
   sqlClient: typeof sqlType,

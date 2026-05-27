@@ -1958,7 +1958,7 @@ describe("paper processing state", () => {
           pendingSourceTier: "archive",
           pendingReviewAction: "archive_to_hot_set",
           pendingReviewStartedAt: "2026-05-10T00:00:00.000Z",
-          pendingReviewReasons: ["intake pending Hot Set grace window preserved"],
+          pendingReviewReasons: ["intake Hot Set grace window preserved"],
         },
       },
     });

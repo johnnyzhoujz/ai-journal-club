@@ -15,7 +15,7 @@ import {
   refreshKnowledgeChunksForFeedItemIfStale,
   type MemoryBackfillFeedItem,
 } from "@/lib/memory-chunks";
-import { buildPaperIntakePendingHotSetPayload } from "@/lib/paper-corpus-tiering";
+import { buildPaperIntakeHotSetPayload } from "@/lib/paper-corpus-tiering";
 import {
   ensurePaperProcessingStateForFeedItem,
   type PaperProcessingStateFeedItem,
@@ -150,7 +150,7 @@ export async function fetchAllContent(): Promise<FetchResult> {
 
     try {
       const paperIntakeTier =
-        item.source_type === "paper" ? buildPaperIntakePendingHotSetPayload() : null;
+        item.source_type === "paper" ? buildPaperIntakeHotSetPayload() : null;
       upsertedItems = (await sql`
         INSERT INTO feed_items (
           source_type, external_id, source_id, title, content, url,
