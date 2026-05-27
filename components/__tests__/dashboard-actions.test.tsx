@@ -244,6 +244,52 @@ describe("DashboardActions", () => {
     });
   });
 
+  it("shows paper processing summary after fetching papers", async () => {
+    const user = userEvent.setup();
+    mockRunFetch.mockResolvedValueOnce({
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 28,
+      paperProcessing: {
+        hydrate: { succeeded: 28, deadlineReached: false },
+        enrich: { succeeded: 28, deadlineReached: false },
+      },
+    });
+
+    render(<DashboardActions />);
+    await user.click(screen.getByRole("button", { name: /run fetch now/i }));
+
+    await waitFor(() => {
+      const status = screen.getByRole("status").textContent!;
+      expect(status).toMatch(/28 papers/i);
+      expect(status).toMatch(/hydrated 28/i);
+      expect(status).toMatch(/enriched 28/i);
+    });
+  });
+
+  it("tells the user when paper processing is still catching up", async () => {
+    const user = userEvent.setup();
+    mockRunFetch.mockResolvedValueOnce({
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 28,
+      paperProcessing: {
+        hydrate: { succeeded: 28, deadlineReached: false },
+        enrich: { succeeded: 12, deadlineReached: true },
+      },
+    });
+
+    render(<DashboardActions />);
+    await user.click(screen.getByRole("button", { name: /run fetch now/i }));
+
+    await waitFor(() => {
+      const status = screen.getByRole("status").textContent!;
+      expect(status).toMatch(/processing is still catching up/i);
+    });
+  });
+
   // -- Run Fetch: edge -------------------------------------------------------
 
   it('shows "Fetched 0 items" when all counts are zero', async () => {

@@ -55,11 +55,21 @@ export function DashboardActions() {
         if (papers > 0)
           parts.push(`${papers} ${papers === 1 ? "paper" : "papers"}`);
 
+        const processing = result.paperProcessing;
+        const processingSummary = processing
+          ? ` Hydrated ${processing.hydrate.succeeded} and enriched ${processing.enrich.succeeded} papers.`
+          : "";
+        const pendingSummary = processing &&
+          (processing.hydrate.deadlineReached || processing.enrich.deadlineReached)
+          ? " Processing is still catching up."
+          : "";
+
         const summary =
           parts.length > 0
-            ? `Fetched ${total} items (${parts.join(", ")})`
+            ? `Fetched ${total} items (${parts.join(", ")}).${processingSummary}${pendingSummary}`
             : `Fetched 0 items`;
         setFetchResult(summary);
+        router.refresh();
       }
     } catch {
       setFetchResult("An unexpected error occurred. Please try again.");
