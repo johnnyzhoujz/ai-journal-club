@@ -36,6 +36,46 @@ For local development against the same project, pull environment variables:
 vercel env pull .env.local
 ```
 
+## Updating an Existing Deployment
+
+Vercel's one-click clone flow creates a repository under your own Git provider
+account. That repository is usually an independent copy, not a GitHub fork, so
+it does not automatically know that `johnnyzhoujz/ai-journal-club` is its
+upstream source.
+
+In a local checkout of your deployment repository, add the public repo as
+`upstream` once:
+
+```bash
+git remote add upstream https://github.com/johnnyzhoujz/ai-journal-club.git
+```
+
+Then update from the public `main` branch whenever you want the latest release:
+
+```bash
+git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main
+```
+
+If you have local customizations, resolve merge conflicts before pushing. If you
+have no customizations and want your deployment repo to exactly match the public
+repo, make a backup branch first:
+
+```bash
+git fetch upstream
+git checkout main
+git branch backup-before-upstream-sync
+git reset --hard upstream/main
+git push --force-with-lease origin main
+```
+
+After the push, Vercel should redeploy if the project is connected to that Git
+repo. Deploys run `npm run vercel:build`, which reruns the idempotent database
+setup against the same Neon database; it updates schema without replacing your
+existing content.
+
 ## Cron Jobs
 
 `vercel.json` registers these scheduled endpoints:

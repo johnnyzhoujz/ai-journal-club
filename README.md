@@ -63,6 +63,25 @@ You should not need to create tables, paste database URLs, configure cron jobs,
 or turn on the default research-memory features by hand. Leave the pre-filled
 defaults as `true`.
 
+## Updating an Existing Deployment
+
+The Vercel deploy flow creates your own Git repository for the app. That private
+deployment repo does not automatically stay connected to this public repository
+as a GitHub fork, so add this repo as `upstream` once and pull updates when you
+want the latest version:
+
+```bash
+git remote add upstream https://github.com/johnnyzhoujz/ai-journal-club.git
+git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main
+```
+
+Pushing to your deployment repo's `main` branch should trigger a Vercel redeploy
+if the project is connected to Git. The build reruns the idempotent database
+setup, so schema updates apply without replacing your existing Neon data.
+
 ## Local Development
 
 You do not need a local checkout to use the deployed app. Local setup is only for
