@@ -4,20 +4,89 @@ vi.mock("@/lib/fetch-content", () => ({
   fetchAllContent: vi.fn(),
 }));
 vi.mock("@/lib/digest", () => ({
-  generateDigest: vi.fn(),
+  generateDigestWithMetadata: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({
   sql: vi.fn(),
 }));
+vi.mock("@/app/api/hydrate-papers/route", () => ({
+  runHydratePapersWorker: vi.fn(),
+}));
+vi.mock("@/app/api/enrich-papers/route", () => ({
+  runEnrichPapersWorker: vi.fn(),
+}));
 
 import { generateDigestAction, runFetchAction } from "../actions";
 import { fetchAllContent } from "@/lib/fetch-content";
-import { generateDigest } from "@/lib/digest";
+import { generateDigestWithMetadata } from "@/lib/digest";
 import { sql } from "@/lib/db";
+import { runHydratePapersWorker } from "@/app/api/hydrate-papers/route";
+import { runEnrichPapersWorker } from "@/app/api/enrich-papers/route";
 
 const mockFetchAllContent = fetchAllContent as unknown as ReturnType<typeof vi.fn>;
-const mockGenerateDigest = generateDigest as unknown as ReturnType<typeof vi.fn>;
+const mockGenerateDigestWithMetadata =
+  generateDigestWithMetadata as unknown as ReturnType<typeof vi.fn>;
 const mockSql = sql as unknown as ReturnType<typeof vi.fn>;
+const mockRunHydratePapersWorker =
+  runHydratePapersWorker as unknown as ReturnType<typeof vi.fn>;
+const mockRunEnrichPapersWorker =
+  runEnrichPapersWorker as unknown as ReturnType<typeof vi.fn>;
+
+const hydrateResult = {
+  paperLimit: null,
+  limitReached: false,
+  claimed: 1,
+  succeeded: 1,
+  failed: 0,
+  dead: 0,
+  fullTextSucceeded: 1,
+  fullTextUnavailable: 0,
+  fullTextFailed: 0,
+  deadlineReached: false,
+  noWork: true,
+  durationMs: 100,
+  errors: [],
+};
+
+const enrichResult = {
+  enabled: true,
+  skipped: false,
+  skipReason: null,
+  paperLimit: null,
+  limitReached: false,
+  claimed: 1,
+  succeeded: 1,
+  failed: 0,
+  dead: 0,
+  deadlineReached: false,
+  noWork: true,
+  durationMs: 100,
+  droppedSpans: 0,
+  droppedClaims: 0,
+  droppedAnchors: 0,
+  embeddingInputCount: 3,
+  embeddingFailedCount: 0,
+  llmInputTokens: 100,
+  llmOutputTokens: 50,
+  errors: [],
+};
+
+const emptySkippedPapers = {
+  total: 0,
+  ids: [] as number[],
+  rows: [] as unknown[],
+  countsByDeterministicStatus: {},
+  countsBySemanticStatus: {},
+  pendingIds: [] as number[],
+  deadIds: [] as number[],
+};
+
+function digestGeneration(
+  digest: Record<string, unknown> | null,
+  skippedPapers = emptySkippedPapers,
+) {
+  return { digest, skippedPapers };
+}
 
 describe("generateDigestAction", () => {
   beforeEach(() => {
@@ -25,7 +94,7 @@ describe("generateDigestAction", () => {
   });
 
   it("returns digest data on success", async () => {
-    mockGenerateDigest.mockResolvedValueOnce({
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration({
       content: "AI Digest",
       tweetCount: 3,
       podcastCount: 1,
@@ -34,7 +103,7 @@ describe("generateDigestAction", () => {
       itemCount: 7,
       sourceItemIds: [1, 2, 3, 4, 5, 6, 7],
       model: "claude-haiku-4-5-20251001",
-    });
+    }));
     mockSql.mockResolvedValueOnce([]);
 
     const result = await generateDigestAction();
@@ -51,7 +120,7 @@ describe("generateDigestAction", () => {
   });
 
   it("stores the digest in the database with correct column values including source_item_ids", async () => {
-    mockGenerateDigest.mockResolvedValueOnce({
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration({
       content: "digest content",
       tweetCount: 4,
       podcastCount: 2,
@@ -60,7 +129,7 @@ describe("generateDigestAction", () => {
       itemCount: 14,
       sourceItemIds: [1, 2, 3],
       model: "claude-haiku-4-5-20251001",
-    });
+    }));
     mockSql.mockResolvedValueOnce([]);
 
     await generateDigestAction();
@@ -83,25 +152,25 @@ describe("generateDigestAction", () => {
     expect(insertCall[8]).toBe("claude-haiku-4-5-20251001"); // model
   });
 
-  it("passes force=true to generateDigest when called with force", async () => {
-    mockGenerateDigest.mockResolvedValueOnce(null);
+  it("passes force=true to generateDigestWithMetadata when called with force", async () => {
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
 
     await generateDigestAction(true);
 
-    expect(mockGenerateDigest).toHaveBeenCalledWith(undefined, true);
+    expect(mockGenerateDigestWithMetadata).toHaveBeenCalledWith(undefined, true);
   });
 
   it("passes force as undefined by default", async () => {
-    mockGenerateDigest.mockResolvedValueOnce(null);
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
 
     await generateDigestAction();
 
-    expect(mockGenerateDigest).toHaveBeenCalledWith(undefined, undefined);
+    expect(mockGenerateDigestWithMetadata).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it("works without CRON_SECRET configured", async () => {
     delete process.env.CRON_SECRET;
-    mockGenerateDigest.mockResolvedValueOnce(null);
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
 
     const result = await generateDigestAction();
 
@@ -110,7 +179,7 @@ describe("generateDigestAction", () => {
   });
 
   it("returns message when no new content", async () => {
-    mockGenerateDigest.mockResolvedValueOnce(null);
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
 
     const result = await generateDigestAction();
 
@@ -118,8 +187,23 @@ describe("generateDigestAction", () => {
     expect(mockSql).not.toHaveBeenCalled();
   });
 
+  it("returns processing message when pending papers block digest generation", async () => {
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null, {
+      ...emptySkippedPapers,
+      total: 28,
+      pendingIds: [1, 2],
+    }));
+
+    const result = await generateDigestAction();
+
+    expect(result).toEqual({
+      message: "28 papers are still being processed before a digest can be generated.",
+    });
+    expect(mockSql).not.toHaveBeenCalled();
+  });
+
   it("returns error when generateDigest throws", async () => {
-    mockGenerateDigest.mockRejectedValueOnce(new Error("API key invalid"));
+    mockGenerateDigestWithMetadata.mockRejectedValueOnce(new Error("API key invalid"));
 
     const result = await generateDigestAction();
 
@@ -127,7 +211,7 @@ describe("generateDigestAction", () => {
   });
 
   it("returns error when DB insert throws", async () => {
-    mockGenerateDigest.mockResolvedValueOnce({
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration({
       content: "content",
       tweetCount: 0,
       podcastCount: 0,
@@ -136,7 +220,7 @@ describe("generateDigestAction", () => {
       itemCount: 0,
       sourceItemIds: [],
       model: "claude-haiku-4-5-20251001",
-    });
+    }));
     mockSql.mockRejectedValueOnce(new Error("DB write failed"));
 
     const result = await generateDigestAction();
@@ -146,7 +230,7 @@ describe("generateDigestAction", () => {
 
   it("does NOT make any HTTP fetch calls", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    mockGenerateDigest.mockResolvedValueOnce(null);
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
 
     await generateDigestAction();
 
@@ -165,7 +249,7 @@ describe("runFetchAction", () => {
       tweets: 5,
       podcasts: 3,
       newsletters: 2,
-      papers: 1,
+      papers: 0,
     });
 
     const result = await runFetchAction();
@@ -174,7 +258,35 @@ describe("runFetchAction", () => {
       tweets: 5,
       podcasts: 3,
       newsletters: 2,
-      papers: 1,
+      papers: 0,
+    });
+    expect(mockRunHydratePapersWorker).not.toHaveBeenCalled();
+    expect(mockRunEnrichPapersWorker).not.toHaveBeenCalled();
+  });
+
+  it("runs paper hydration and enrichment after fetching papers", async () => {
+    mockFetchAllContent.mockResolvedValueOnce({
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 28,
+    });
+    mockRunHydratePapersWorker.mockResolvedValueOnce(hydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValueOnce(enrichResult);
+
+    const result = await runFetchAction();
+
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 28,
+      paperProcessing: {
+        hydrate: hydrateResult,
+        enrich: enrichResult,
+      },
     });
   });
 
@@ -196,6 +308,8 @@ describe("runFetchAction", () => {
       papers: 0,
       errors: ["tweets: X API rate limited"],
     });
+    expect(mockRunHydratePapersWorker).not.toHaveBeenCalled();
+    expect(mockRunEnrichPapersWorker).not.toHaveBeenCalled();
   });
 
   it("returns error when fetchAllContent throws", async () => {

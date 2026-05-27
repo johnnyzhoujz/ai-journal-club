@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import fs from "fs";
+import path from "path";
 import { splitSqlStatements } from "../sql-statements";
 
 describe("splitSqlStatements", () => {
@@ -58,5 +60,16 @@ describe("splitSqlStatements", () => {
     expect(statements).toHaveLength(2);
     expect(statements[0]).toContain("UPDATE items");
     expect(statements[1]).toBe("SELECT 1");
+  });
+
+  it("seeds the default papers source idempotently", () => {
+    const migration = fs.readFileSync(
+      path.join(process.cwd(), "db/migrations/008_default_papers_source.sql"),
+      "utf-8",
+    );
+
+    expect(migration).toContain("Hugging Face Daily Papers");
+    expect(migration).toContain("WHERE NOT EXISTS");
+    expect(migration).toContain("type = 'papers'");
   });
 });
