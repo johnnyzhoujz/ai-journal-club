@@ -768,7 +768,7 @@ describe("paper corpus refresh report", () => {
     });
   });
 
-  it("preserves intake pending Hot Set during the grace window", () => {
+  it("preserves intake pending Hot Set rows during the grace window", () => {
     const report = buildPaperCorpusRefreshReport([
       row({
         id: 82,
@@ -811,7 +811,7 @@ describe("paper corpus refresh report", () => {
       recommendedTier: "hot_set",
       action: "promote",
     });
-    expect(freshRecommendation.reasons).toContain("intake pending Hot Set grace window preserved");
+    expect(freshRecommendation.reasons).toContain("intake Hot Set grace window preserved");
     expect(expiredRecommendation).toMatchObject({
       currentTier: "archive",
       recommendedTier: "archive",
@@ -862,6 +862,51 @@ describe("paper corpus refresh report", () => {
     expect(expiredPayload.tier_metadata_json.retention?.pendingTier).toBeNull();
   });
 
+  it("keeps directly ingested Hot Set papers in the intake grace window", () => {
+    const report = buildPaperCorpusRefreshReport([
+      row({
+        id: 182,
+        title: "Fresh direct intake paper",
+        published_at: "2026-05-20T00:00:00Z",
+        corpus_tier: "hot_set",
+        tier_metadata_json: {
+          retention: {
+            intakeDefaultTier: "hot_set",
+            selectedAt: "2026-05-20T00:00:00.000Z",
+            graceDays: 14,
+          },
+        },
+      }),
+      row({
+        id: 183,
+        title: "Expired direct intake paper",
+        published_at: "2026-05-01T00:00:00Z",
+        corpus_tier: "hot_set",
+        tier_metadata_json: {
+          retention: {
+            intakeDefaultTier: "hot_set",
+            selectedAt: "2026-05-01T00:00:00.000Z",
+            graceDays: 14,
+          },
+        },
+      }),
+    ], referenceDate);
+    const freshRecommendation = findRecommendation(report, 182);
+    const expiredRecommendation = findRecommendation(report, 183);
+
+    expect(freshRecommendation).toMatchObject({
+      currentTier: "hot_set",
+      recommendedTier: "hot_set",
+      action: "keep",
+    });
+    expect(freshRecommendation.reasons).toContain("intake Hot Set grace window preserved");
+    expect(expiredRecommendation).toMatchObject({
+      currentTier: "hot_set",
+      recommendedTier: "core_canon",
+      action: "demote",
+    });
+  });
+
   it("records expired intake rows with strong signals as new review promotions", () => {
     const report = buildPaperCorpusRefreshReport([
       row({
@@ -898,7 +943,7 @@ describe("paper corpus refresh report", () => {
       recommendedTier: "hot_set",
       action: "promote",
     });
-    expect(recommendation.reasons).not.toContain("intake pending Hot Set grace window preserved");
+    expect(recommendation.reasons).not.toContain("intake Hot Set grace window preserved");
 
     const payload = buildPaperCorpusTierReviewUpdatePayload(recommendation, {
       currentMetadata: {

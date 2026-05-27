@@ -306,7 +306,7 @@ const DEFAULT_HOT_SET_TARGET = 125;
 const DEFAULT_HOT_SET_CAP = 200;
 const DEFAULT_CORE_CANON_TARGET = 300;
 const DAY_MS = 86_400_000;
-const INTAKE_PENDING_HOT_SET_GRACE_REASON = "intake pending Hot Set grace window preserved";
+const INTAKE_HOT_SET_GRACE_REASON = "intake Hot Set grace window preserved";
 
 const TIER_RANK: Record<CorpusTier, number> = {
   hot_set: 3,
@@ -846,15 +846,12 @@ function numberFromMetadata(value: unknown): number | null {
   return null;
 }
 
-function isWithinIntakePendingHotSetGrace(
+function isWithinIntakeHotSetGrace(
   row: PaperCorpusRefreshRow,
   referenceDate: Date,
 ): boolean {
   const retention = row.tier_metadata_json?.retention;
-  if (
-    retention?.pendingTier !== "hot_set" ||
-    retention.intakeDefaultTier !== "hot_set"
-  ) {
+  if (retention?.intakeDefaultTier !== "hot_set") {
     return false;
   }
 
@@ -972,11 +969,11 @@ function buildScoredReview(
   };
   const score = scoreComponents.freshness + scoreComponents.popularity + scoreComponents.growth;
   const manualOverride = getManualOverride(row);
-  const preserveIntakePendingHotSet =
-    !manualOverride && isWithinIntakePendingHotSetGrace(row, referenceDate);
+  const preserveIntakeHotSet =
+    !manualOverride && isWithinIntakeHotSetGrace(row, referenceDate);
   const recommendedTier =
     manualOverride?.recommendedTier ??
-    (preserveIntakePendingHotSet
+    (preserveIntakeHotSet
       ? "hot_set"
       : recommendAutomaticTier(row, score, scoreComponents));
 
@@ -986,8 +983,8 @@ function buildScoredReview(
     ...popularityScore.reasons,
     ...growthScore.reasons,
   ];
-  if (preserveIntakePendingHotSet) {
-    reasons.push(INTAKE_PENDING_HOT_SET_GRACE_REASON);
+  if (preserveIntakeHotSet) {
+    reasons.push(INTAKE_HOT_SET_GRACE_REASON);
   }
   if (manualOverride) {
     reasons.push(`manual override preserved: ${manualOverride.detail}`);
@@ -1158,7 +1155,7 @@ function isGracePreservedIntakeHotSetPromotion(
     currentRetention.intakeDefaultTier === "hot_set" &&
     currentRetention.pendingTier === "hot_set" &&
     currentRetention.pendingReviewAction === "intake_to_hot_set" &&
-    item.reasons.includes(INTAKE_PENDING_HOT_SET_GRACE_REASON)
+    item.reasons.includes(INTAKE_HOT_SET_GRACE_REASON)
   );
 }
 

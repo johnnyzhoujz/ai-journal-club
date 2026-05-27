@@ -23,7 +23,7 @@ vi.mock("@/lib/memory-chunks", () => ({
   refreshKnowledgeChunksForFeedItemIfStale: vi.fn(),
 }));
 vi.mock("@/lib/paper-corpus-tiering", () => ({
-  buildPaperIntakePendingHotSetPayload: vi.fn(),
+  buildPaperIntakeHotSetPayload: vi.fn(),
 }));
 vi.mock("@/lib/paper-processing-state", () => ({
   ensurePaperProcessingStateForFeedItem: vi.fn(),
@@ -40,7 +40,7 @@ import {
   isMemoryChunkWritesEnabled,
   refreshKnowledgeChunksForFeedItemIfStale,
 } from "@/lib/memory-chunks";
-import { buildPaperIntakePendingHotSetPayload } from "@/lib/paper-corpus-tiering";
+import { buildPaperIntakeHotSetPayload } from "@/lib/paper-corpus-tiering";
 import { ensurePaperProcessingStateForFeedItem } from "@/lib/paper-processing-state";
 
 const mockSql = sql as unknown as ReturnType<typeof vi.fn>;
@@ -54,8 +54,8 @@ const mockIsMemoryChunkWritesEnabled =
   isMemoryChunkWritesEnabled as unknown as ReturnType<typeof vi.fn>;
 const mockRefreshKnowledgeChunksForFeedItemIfStale =
   refreshKnowledgeChunksForFeedItemIfStale as unknown as ReturnType<typeof vi.fn>;
-const mockBuildPaperIntakePendingHotSetPayload =
-  buildPaperIntakePendingHotSetPayload as unknown as ReturnType<typeof vi.fn>;
+const mockBuildPaperIntakeHotSetPayload =
+  buildPaperIntakeHotSetPayload as unknown as ReturnType<typeof vi.fn>;
 const mockEnsurePaperProcessingStateForFeedItem =
   ensurePaperProcessingStateForFeedItem as unknown as ReturnType<typeof vi.fn>;
 
@@ -72,13 +72,13 @@ describe("fetchAllContent", () => {
       sourceHash: "hash",
       sourceKind: "feed_item:paper:v1",
     });
-    mockBuildPaperIntakePendingHotSetPayload.mockReturnValue({
-      corpus_tier: "archive",
+    mockBuildPaperIntakeHotSetPayload.mockReturnValue({
+      corpus_tier: "hot_set",
       relevance_score: null,
       canon_score: null,
-      hot_set_reason: null,
+      hot_set_reason: "new selected paper grace window (14 days)",
       canon_reason: null,
-      archive_reason: "new selected paper pending hot-set readiness (14 day grace window)",
+      archive_reason: null,
       ignored_reason: null,
       last_seen_at: "2026-01-01T00:00:00.000Z",
       last_scored_at: null,
@@ -88,11 +88,6 @@ describe("fetchAllContent", () => {
           intakeDefaultTier: "hot_set",
           graceDays: 14,
           selectedAt: "2026-01-01T00:00:00.000Z",
-          pendingTier: "hot_set",
-          pendingSourceTier: "archive",
-          pendingReviewAction: "intake_to_hot_set",
-          pendingReviewStartedAt: "2026-01-01T00:00:00.000Z",
-          pendingReviewReasons: ["new selected paper grace window (14 days)"],
         },
       },
     });
@@ -269,11 +264,12 @@ describe("fetchAllContent", () => {
     );
     expect(conflictUpdate).not.toContain("corpus_tier =");
     expect(conflictUpdate).not.toContain("tier_metadata_json =");
-    expect(insertCall[15]).toBe("archive");
-    expect(insertCall[18]).toBeNull();
-    expect(insertCall[20]).toBe("new selected paper pending hot-set readiness (14 day grace window)");
-    expect(insertCall[24]).toContain('"pendingTier":"hot_set"');
-    expect(mockBuildPaperIntakePendingHotSetPayload).toHaveBeenCalledTimes(1);
+    expect(insertCall[15]).toBe("hot_set");
+    expect(insertCall[18]).toBe("new selected paper grace window (14 days)");
+    expect(insertCall[20]).toBeNull();
+    expect(insertCall[24]).toContain('"intakeDefaultTier":"hot_set"');
+    expect(insertCall[24]).not.toContain('"pendingTier"');
+    expect(mockBuildPaperIntakeHotSetPayload).toHaveBeenCalledTimes(1);
     expect(mockEnsurePaperProcessingStateForFeedItem).not.toHaveBeenCalled();
     expect(insertCall[3]).toBe(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).not.toHaveBeenCalled();
@@ -296,10 +292,10 @@ describe("fetchAllContent", () => {
       paper_meta: null,
       full_text: null,
       full_text_source: null,
-      corpus_tier: "archive",
+      corpus_tier: "hot_set",
       tier_metadata_json: {
         scoreVersion: "intake-hot-set-v1",
-        retention: { pendingTier: "hot_set" },
+        retention: { intakeDefaultTier: "hot_set" },
       },
       inserted: true,
     };
@@ -343,10 +339,10 @@ describe("fetchAllContent", () => {
       paper_meta: null,
       full_text: null,
       full_text_source: null,
-      corpus_tier: "archive",
+      corpus_tier: "hot_set",
       tier_metadata_json: {
         scoreVersion: "intake-hot-set-v1",
-        retention: { pendingTier: "hot_set" },
+        retention: { intakeDefaultTier: "hot_set" },
       },
       inserted: true,
     };
@@ -398,10 +394,10 @@ describe("fetchAllContent", () => {
       paper_meta: null,
       full_text: null,
       full_text_source: null,
-      corpus_tier: "archive",
+      corpus_tier: "hot_set",
       tier_metadata_json: {
         scoreVersion: "intake-hot-set-v1",
-        retention: { pendingTier: "hot_set" },
+        retention: { intakeDefaultTier: "hot_set" },
       },
       inserted: true,
     };
@@ -416,7 +412,7 @@ describe("fetchAllContent", () => {
     const result = await fetchAllContent();
 
     expect(result.papers).toBe(1);
-    expect(mockBuildPaperIntakePendingHotSetPayload).toHaveBeenCalledTimes(1);
+    expect(mockBuildPaperIntakeHotSetPayload).toHaveBeenCalledTimes(1);
     expect(mockEnsurePaperProcessingStateForFeedItem).toHaveBeenCalledTimes(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).toHaveBeenCalledTimes(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).toHaveBeenCalledWith(insertedItem);
@@ -453,7 +449,7 @@ describe("fetchAllContent", () => {
 
     await fetchAllContent();
 
-    expect(mockBuildPaperIntakePendingHotSetPayload).toHaveBeenCalledTimes(1);
+    expect(mockBuildPaperIntakeHotSetPayload).toHaveBeenCalledTimes(1);
     expect(mockEnsurePaperProcessingStateForFeedItem).toHaveBeenCalledTimes(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).toHaveBeenCalledTimes(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).toHaveBeenCalledWith(updatedItem);
@@ -490,7 +486,7 @@ describe("fetchAllContent", () => {
 
     await fetchAllContent();
 
-    expect(mockBuildPaperIntakePendingHotSetPayload).toHaveBeenCalledTimes(1);
+    expect(mockBuildPaperIntakeHotSetPayload).toHaveBeenCalledTimes(1);
     expect(mockEnsurePaperProcessingStateForFeedItem).toHaveBeenCalledTimes(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).not.toHaveBeenCalled();
   });
@@ -526,7 +522,7 @@ describe("fetchAllContent", () => {
 
     await fetchAllContent();
 
-    expect(mockBuildPaperIntakePendingHotSetPayload).toHaveBeenCalledTimes(1);
+    expect(mockBuildPaperIntakeHotSetPayload).toHaveBeenCalledTimes(1);
     expect(mockEnsurePaperProcessingStateForFeedItem).toHaveBeenCalledTimes(1);
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).not.toHaveBeenCalled();
   });
@@ -545,7 +541,7 @@ describe("fetchAllContent", () => {
 
     await fetchAllContent();
 
-    expect(mockBuildPaperIntakePendingHotSetPayload).toHaveBeenCalledTimes(1);
+    expect(mockBuildPaperIntakeHotSetPayload).toHaveBeenCalledTimes(1);
     expect(mockEnsurePaperProcessingStateForFeedItem).not.toHaveBeenCalled();
     expect(mockRefreshKnowledgeChunksForFeedItemIfStale).not.toHaveBeenCalled();
   });
@@ -567,10 +563,10 @@ describe("fetchAllContent", () => {
       paper_meta: null,
       full_text: null,
       full_text_source: null,
-      corpus_tier: "archive",
+      corpus_tier: "hot_set",
       tier_metadata_json: {
         scoreVersion: "intake-hot-set-v1",
-        retention: { pendingTier: "hot_set" },
+        retention: { intakeDefaultTier: "hot_set" },
       },
       inserted: true,
     };

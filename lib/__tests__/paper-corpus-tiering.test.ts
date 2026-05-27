@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  buildPaperIntakePendingHotSetPayload,
+  buildPaperIntakeHotSetPayload,
   buildPaperCorpusTierUpdatePayload,
   persistPaperCorpusTierMetadata,
   scorePaperCorpusTier,
@@ -141,25 +141,23 @@ describe("paper corpus tiering", () => {
     );
   });
 
-  it("defaults newly selected intake papers into pending hot-set processing", () => {
-    const payload = buildPaperIntakePendingHotSetPayload(referenceDate);
+  it("defaults newly selected intake papers into the Hot Set grace window", () => {
+    const payload = buildPaperIntakeHotSetPayload(referenceDate);
 
-    expect(payload.corpus_tier).toBe("archive");
+    expect(payload.corpus_tier).toBe("hot_set");
     expect(payload.relevance_score).toBeNull();
     expect(payload.canon_score).toBeNull();
     expect(payload.last_scored_at).toBeNull();
-    expect(payload.hot_set_reason).toBeNull();
-    expect(payload.archive_reason).toContain("pending hot-set readiness");
+    expect(payload.hot_set_reason).toContain("new selected paper grace window");
+    expect(payload.archive_reason).toBeNull();
     expect(payload.tier_metadata_json).toMatchObject({
       scoreVersion: "intake-hot-set-v1",
       retention: {
         intakeDefaultTier: "hot_set",
         graceDays: 14,
         selectedAt: "2026-05-16T00:00:00.000Z",
-        pendingTier: "hot_set",
-        pendingSourceTier: "archive",
-        pendingReviewAction: "intake_to_hot_set",
       },
     });
+    expect(payload.tier_metadata_json.retention?.pendingTier).toBeUndefined();
   });
 });
