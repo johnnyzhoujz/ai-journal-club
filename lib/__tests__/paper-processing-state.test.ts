@@ -2597,6 +2597,25 @@ describe("paper processing state", () => {
     expect(semanticClaim).toContain("WHEN 'failed' THEN 2");
   });
 
+  it("casts the hot-set readiness timestamp before building JSONB metadata", () => {
+    const source = readFileSync(
+      join(process.cwd(), "lib/paper-processing-state.ts"),
+      "utf8",
+    );
+    const start = source.indexOf(
+      "export async function finalizeCompletedPendingHotSetPromotions",
+    );
+    const end = source.indexOf(
+      "async function rescheduleSemanticFinalizationFailure",
+    );
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const finalizationSql = source.slice(start, end);
+    expect(finalizationSql).toContain("'hotSetReadyAt'");
+    expect(finalizationSql).toMatch(/'hotSetReadyAt',\s*\$\{nowIso\}::text/);
+  });
+
   it("claims a specific semantic paper for smoke runs", async () => {
     const targetPaper = paper({
       id: 101,

@@ -1953,7 +1953,7 @@ export async function finalizeCompletedPendingHotSetPromotions(
             - 'pendingReviewReasons'
           ) || jsonb_build_object(
             'hotSetReadyAt',
-            ${nowIso},
+            ${nowIso}::text,
             'hotSetReadyReviewRunId',
             ready.pending_review_run_id
           )
