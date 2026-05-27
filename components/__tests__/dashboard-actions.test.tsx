@@ -132,6 +132,30 @@ describe("DashboardActions", () => {
     });
   });
 
+  it("shows paper processing progress when digest is still pending", async () => {
+    const user = userEvent.setup();
+    mockGenerateDigest.mockResolvedValueOnce({
+      message: "28 papers are still being processed before a digest can be generated.",
+      paperProcessing: {
+        hydrate: { succeeded: 28, deadlineReached: false },
+        enrich: { succeeded: 12, deadlineReached: true },
+      },
+    });
+
+    render(<DashboardActions />);
+    await user.click(
+      screen.getByRole("button", { name: /generate digest/i }),
+    );
+
+    await waitFor(() => {
+      const status = screen.getByRole("status").textContent!;
+      expect(status).toMatch(/28 papers are still being processed/i);
+      expect(status).toMatch(/hydrated 28/i);
+      expect(status).toMatch(/enriched 12/i);
+      expect(status).toMatch(/processing is still catching up/i);
+    });
+  });
+
   it("prevents duplicate calls while loading", async () => {
     const user = userEvent.setup();
     mockGenerateDigest.mockReturnValueOnce(new Promise(() => {})); // never resolves
