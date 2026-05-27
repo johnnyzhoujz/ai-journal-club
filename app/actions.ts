@@ -21,6 +21,25 @@ type FetchActionResult = FetchResult & {
   paperProcessing?: ManualPaperProcessingResult;
 };
 
+type DigestActionResult =
+  | {
+      content: string;
+      item_count: number;
+      tweet_count: number;
+      podcast_count: number;
+      newsletter_count: number;
+      paper_count: number;
+      model: string;
+      fetch?: FetchResult;
+      paperProcessing?: ManualPaperProcessingResult;
+    }
+  | {
+      message: string;
+      fetch?: FetchResult;
+      paperProcessing?: ManualPaperProcessingResult;
+    }
+  | { error: string };
+
 function digestUnavailableMessage(totalSkippedPapers: number) {
   if (totalSkippedPapers > 0) {
     return `${totalSkippedPapers} paper${totalSkippedPapers === 1 ? " is" : "s are"} still being processed before a digest can be generated.`;
@@ -28,42 +47,112 @@ function digestUnavailableMessage(totalSkippedPapers: number) {
   return "No new content to digest";
 }
 
-export async function generateDigestAction(force?: boolean): Promise<
-  | { content: string; item_count: number; tweet_count: number; podcast_count: number; newsletter_count: number; paper_count: number; model: string }
-  | { message: string }
-  | { error: string }
-> {
-  try {
-    const generation = await generateDigestWithMetadata(undefined, force);
-    const result = generation.digest;
+function fetchedItemCount(result: FetchResult) {
+  return (
+    (result.tweets ?? 0) +
+    (result.podcasts ?? 0) +
+    (result.newsletters ?? 0) +
+    (result.papers ?? 0)
+  );
+}
 
-    if (!result) {
-      return { message: digestUnavailableMessage(generation.skippedPapers.total) };
+function hasPaperProcessingActivity(processing: ManualPaperProcessingResult) {
+  return (
+    processing.hydrate.claimed > 0 ||
+    processing.hydrate.succeeded > 0 ||
+    processing.hydrate.failed > 0 ||
+    processing.hydrate.dead > 0 ||
+    processing.enrich.claimed > 0 ||
+    processing.enrich.succeeded > 0 ||
+    processing.enrich.failed > 0 ||
+    processing.enrich.dead > 0
+  );
+}
+
+async function storeDigestResult(
+  result: NonNullable<Awaited<ReturnType<typeof generateDigestWithMetadata>>["digest"]>,
+  extras: {
+    fetch?: FetchResult;
+    paperProcessing?: ManualPaperProcessingResult;
+  } = {},
+): Promise<DigestActionResult> {
+  await sql`
+    INSERT INTO digests (content, item_count, tweet_count, podcast_count, newsletter_count, paper_count, source_item_ids, model)
+    VALUES (
+      ${result.content},
+      ${result.itemCount},
+      ${result.tweetCount},
+      ${result.podcastCount},
+      ${result.newsletterCount},
+      ${result.paperCount},
+      ${result.sourceItemIds},
+      ${result.model}
+    )
+  `;
+
+  return {
+    content: result.content,
+    item_count: result.itemCount,
+    tweet_count: result.tweetCount,
+    podcast_count: result.podcastCount,
+    newsletter_count: result.newsletterCount,
+    paper_count: result.paperCount,
+    model: result.model,
+    ...extras,
+  };
+}
+
+async function prepareContentForDigest(
+  skippedPaperCount: number,
+): Promise<{
+  fetch?: FetchResult;
+  paperProcessing?: ManualPaperProcessingResult;
+}> {
+  if (skippedPaperCount > 0) {
+    return { paperProcessing: await runManualPaperProcessing() };
+  }
+
+  const fetch = await fetchAllContent();
+  if (fetchedItemCount(fetch) <= 0) {
+    return {};
+  }
+
+  if ((fetch.papers ?? 0) <= 0) {
+    return { fetch };
+  }
+
+  return {
+    fetch,
+    paperProcessing: await runManualPaperProcessing(),
+  };
+}
+
+export async function generateDigestAction(force?: boolean): Promise<DigestActionResult> {
+  try {
+    let generation = await generateDigestWithMetadata(undefined, force);
+    let result = generation.digest;
+
+    if (result) {
+      return await storeDigestResult(result);
     }
 
-    await sql`
-      INSERT INTO digests (content, item_count, tweet_count, podcast_count, newsletter_count, paper_count, source_item_ids, model)
-      VALUES (
-        ${result.content},
-        ${result.itemCount},
-        ${result.tweetCount},
-        ${result.podcastCount},
-        ${result.newsletterCount},
-        ${result.paperCount},
-        ${result.sourceItemIds},
-        ${result.model}
-      )
-    `;
+    if (!force) {
+      const extras = await prepareContentForDigest(generation.skippedPapers.total);
+      if (extras.fetch || extras.paperProcessing) {
+        generation = await generateDigestWithMetadata(undefined, force);
+        result = generation.digest;
+        if (result) {
+          return await storeDigestResult(result, extras);
+        }
+      }
 
-    return {
-      content: result.content,
-      item_count: result.itemCount,
-      tweet_count: result.tweetCount,
-      podcast_count: result.podcastCount,
-      newsletter_count: result.newsletterCount,
-      paper_count: result.paperCount,
-      model: result.model,
-    };
+      return {
+        message: digestUnavailableMessage(generation.skippedPapers.total),
+        ...extras,
+      };
+    }
+
+    return { message: digestUnavailableMessage(generation.skippedPapers.total) };
   } catch (err) {
     console.error("generateDigestAction failed:", err);
     return { error: "Failed to generate digest. Please try again." };
@@ -79,11 +168,11 @@ async function runManualPaperProcessing(): Promise<ManualPaperProcessingResult> 
 export async function runFetchAction(): Promise<FetchActionResult | { error: string }> {
   try {
     const result = await fetchAllContent();
-    if ((result.papers ?? 0) <= 0) {
+    const paperProcessing = await runManualPaperProcessing();
+    if ((result.papers ?? 0) <= 0 && !hasPaperProcessingActivity(paperProcessing)) {
       return result;
     }
 
-    const paperProcessing = await runManualPaperProcessing();
     return { ...result, paperProcessing };
   } catch (err) {
     console.error("runFetchAction failed:", err);

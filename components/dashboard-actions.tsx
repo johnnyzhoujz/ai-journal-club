@@ -67,7 +67,9 @@ export function DashboardActions() {
         const summary =
           parts.length > 0
             ? `Fetched ${total} items (${parts.join(", ")}).${processingSummary}${pendingSummary}`
-            : `Fetched 0 items`;
+            : processingSummary
+              ? `Fetched 0 items.${processingSummary}${pendingSummary}`
+              : `Fetched 0 items`;
         setFetchResult(summary);
         router.refresh();
       }
