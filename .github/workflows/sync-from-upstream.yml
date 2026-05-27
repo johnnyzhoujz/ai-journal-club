@@ -1,0 +1,120 @@
+name: Sync from upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_repository:
+        description: Public repository to sync from.
+        required: true
+        default: johnnyzhoujz/ai-journal-club
+      upstream_branch:
+        description: Public repository branch to merge.
+        required: true
+        default: main
+      sync_branch:
+        description: Branch to create or update in this repo.
+        required: true
+        default: sync-upstream-main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-from-upstream
+  cancel-in-progress: false
+
+jobs:
+  open-sync-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out deployment repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge upstream into sync branch
+        id: merge
+        env:
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          SYNC_BRANCH: ${{ inputs.sync_branch }}
+          UPSTREAM_BRANCH: ${{ inputs.upstream_branch }}
+          UPSTREAM_REPOSITORY: ${{ inputs.upstream_repository }}
+        run: |
+          set -euo pipefail
+
+          if ! printf '%s' "$UPSTREAM_REPOSITORY" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+            echo "Invalid upstream repository: $UPSTREAM_REPOSITORY" >&2
+            exit 1
+          fi
+
+          if ! git check-ref-format --branch "$UPSTREAM_BRANCH" >/dev/null; then
+            echo "Invalid upstream branch: $UPSTREAM_BRANCH" >&2
+            exit 1
+          fi
+
+          if ! git check-ref-format --branch "$SYNC_BRANCH" >/dev/null; then
+            echo "Invalid sync branch: $SYNC_BRANCH" >&2
+            exit 1
+          fi
+
+          git fetch origin "$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          git fetch origin "$SYNC_BRANCH:refs/remotes/origin/$SYNC_BRANCH" || true
+          git remote add upstream "https://github.com/${UPSTREAM_REPOSITORY}.git"
+          git fetch upstream "$UPSTREAM_BRANCH:refs/remotes/upstream/$UPSTREAM_BRANCH"
+
+          git checkout -B "$SYNC_BRANCH" "origin/$BASE_BRANCH"
+
+          if ! git merge --no-edit "upstream/$UPSTREAM_BRANCH"; then
+            echo "::error::Upstream changes conflict with this deployment repo. Resolve the merge locally, then push the result."
+            exit 1
+          fi
+
+          if git diff --quiet "origin/$BASE_BRANCH"...HEAD; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "This repository is already up to date with ${UPSTREAM_REPOSITORY}@${UPSTREAM_BRANCH}."
+            exit 0
+          fi
+
+          if git show-ref --verify --quiet "refs/remotes/origin/$SYNC_BRANCH"; then
+            expected_remote="$(git rev-parse "refs/remotes/origin/$SYNC_BRANCH")"
+            git push --force-with-lease="refs/heads/$SYNC_BRANCH:$expected_remote" origin "$SYNC_BRANCH"
+          else
+            git push origin "$SYNC_BRANCH"
+          fi
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update pull request
+        if: steps.merge.outputs.has_changes == 'true'
+        env:
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          SYNC_BRANCH: ${{ inputs.sync_branch }}
+          UPSTREAM_BRANCH: ${{ inputs.upstream_branch }}
+          UPSTREAM_REPOSITORY: ${{ inputs.upstream_repository }}
+        run: |
+          set -euo pipefail
+
+          existing_pr="$(gh pr list \
+            --base "$BASE_BRANCH" \
+            --head "$SYNC_BRANCH" \
+            --state open \
+            --json url \
+            --jq '.[0].url // ""')"
+
+          if [ -n "$existing_pr" ]; then
+            echo "Updated existing sync PR: $existing_pr"
+            exit 0
+          fi
+
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$SYNC_BRANCH" \
+            --title "Sync from upstream" \
+            --body "This PR merges updates from ${UPSTREAM_REPOSITORY}@${UPSTREAM_BRANCH} into this deployment repo. Review the changes, confirm your Vercel deployment settings, then merge to redeploy."

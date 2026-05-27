@@ -67,8 +67,14 @@ defaults as `true`.
 
 The Vercel deploy flow creates your own Git repository for the app. That private
 deployment repo does not automatically stay connected to this public repository
-as a GitHub fork, so add this repo as `upstream` once and pull updates when you
-want the latest version:
+as a GitHub fork.
+
+If your deployment repo includes the **Sync from upstream** workflow, open
+GitHub Actions in that repo, select **Sync from upstream**, and click **Run
+workflow**. It opens a pull request with the latest public updates so you can
+review and merge them.
+
+You can also sync from a local checkout by adding this repo as `upstream` once:
 
 ```bash
 git remote add upstream https://github.com/johnnyzhoujz/ai-journal-club.git
