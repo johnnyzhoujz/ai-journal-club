@@ -71,6 +71,24 @@ const enrichResult = {
   errors: [],
 };
 
+const noWorkHydrateResult = {
+  ...hydrateResult,
+  claimed: 0,
+  succeeded: 0,
+  fullTextSucceeded: 0,
+  noWork: true,
+};
+
+const noWorkEnrichResult = {
+  ...enrichResult,
+  claimed: 0,
+  succeeded: 0,
+  embeddingInputCount: 0,
+  llmInputTokens: 0,
+  llmOutputTokens: 0,
+  noWork: true,
+};
+
 const emptySkippedPapers = {
   total: 0,
   ids: [] as number[],
@@ -90,7 +108,15 @@ function digestGeneration(
 
 describe("generateDigestAction", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mockFetchAllContent.mockResolvedValue({
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 0,
+    });
+    mockRunHydratePapersWorker.mockResolvedValue(noWorkHydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValue(noWorkEnrichResult);
   });
 
   it("returns digest data on success", async () => {
@@ -161,7 +187,17 @@ describe("generateDigestAction", () => {
   });
 
   it("passes force as undefined by default", async () => {
-    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
+    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration({
+      content: "AI Digest",
+      tweetCount: 1,
+      podcastCount: 0,
+      newsletterCount: 0,
+      paperCount: 0,
+      itemCount: 1,
+      sourceItemIds: [1],
+      model: "claude-haiku-4-5-20251001",
+    }));
+    mockSql.mockResolvedValueOnce([]);
 
     await generateDigestAction();
 
@@ -170,7 +206,9 @@ describe("generateDigestAction", () => {
 
   it("works without CRON_SECRET configured", async () => {
     delete process.env.CRON_SECRET;
-    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null))
+      .mockResolvedValueOnce(digestGeneration(null));
 
     const result = await generateDigestAction();
 
@@ -179,7 +217,9 @@ describe("generateDigestAction", () => {
   });
 
   it("returns message when no new content", async () => {
-    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null))
+      .mockResolvedValueOnce(digestGeneration(null));
 
     const result = await generateDigestAction();
 
@@ -188,18 +228,108 @@ describe("generateDigestAction", () => {
   });
 
   it("returns processing message when pending papers block digest generation", async () => {
-    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null, {
-      ...emptySkippedPapers,
-      total: 28,
-      pendingIds: [1, 2],
-    }));
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null, {
+        ...emptySkippedPapers,
+        total: 28,
+        pendingIds: [1, 2],
+      }))
+      .mockResolvedValueOnce(digestGeneration(null, {
+        ...emptySkippedPapers,
+        total: 28,
+        pendingIds: [1, 2],
+      }));
+    mockRunHydratePapersWorker.mockResolvedValueOnce(hydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValueOnce(enrichResult);
 
     const result = await generateDigestAction();
 
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       message: "28 papers are still being processed before a digest can be generated.",
+      paperProcessing: {
+        hydrate: hydrateResult,
+        enrich: enrichResult,
+      },
     });
     expect(mockSql).not.toHaveBeenCalled();
+  });
+
+  it("processes pending papers and retries digest generation", async () => {
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null, {
+        ...emptySkippedPapers,
+        total: 2,
+        pendingIds: [1, 2],
+      }))
+      .mockResolvedValueOnce(digestGeneration({
+        content: "AI Digest",
+        tweetCount: 0,
+        podcastCount: 0,
+        newsletterCount: 0,
+        paperCount: 2,
+        itemCount: 2,
+        sourceItemIds: [1, 2],
+        model: "claude-haiku-4-5-20251001",
+      }));
+    mockRunHydratePapersWorker.mockResolvedValueOnce(hydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValueOnce(enrichResult);
+    mockSql.mockResolvedValueOnce([]);
+
+    const result = await generateDigestAction();
+
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockGenerateDigestWithMetadata).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({
+      content: "AI Digest",
+      item_count: 2,
+      paperProcessing: {
+        hydrate: hydrateResult,
+        enrich: enrichResult,
+      },
+    });
+  });
+
+  it("fetches first-run content, processes papers, and retries digest generation", async () => {
+    const fetchResult = {
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 2,
+    };
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null))
+      .mockResolvedValueOnce(digestGeneration({
+        content: "AI Digest",
+        tweetCount: 0,
+        podcastCount: 0,
+        newsletterCount: 0,
+        paperCount: 2,
+        itemCount: 2,
+        sourceItemIds: [1, 2],
+        model: "claude-haiku-4-5-20251001",
+      }));
+    mockFetchAllContent.mockResolvedValueOnce(fetchResult);
+    mockRunHydratePapersWorker.mockResolvedValueOnce(hydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValueOnce(enrichResult);
+    mockSql.mockResolvedValueOnce([]);
+
+    const result = await generateDigestAction();
+
+    expect(mockFetchAllContent).toHaveBeenCalledTimes(1);
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      content: "AI Digest",
+      item_count: 2,
+      fetch: fetchResult,
+      paperProcessing: {
+        hydrate: hydrateResult,
+        enrich: enrichResult,
+      },
+    });
   });
 
   it("returns error when generateDigest throws", async () => {
@@ -230,7 +360,9 @@ describe("generateDigestAction", () => {
 
   it("does NOT make any HTTP fetch calls", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    mockGenerateDigestWithMetadata.mockResolvedValueOnce(digestGeneration(null));
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null))
+      .mockResolvedValueOnce(digestGeneration(null));
 
     await generateDigestAction();
 
@@ -241,7 +373,9 @@ describe("generateDigestAction", () => {
 
 describe("runFetchAction", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mockRunHydratePapersWorker.mockResolvedValue(noWorkHydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValue(noWorkEnrichResult);
   });
 
   it("returns fetch counts on success", async () => {
@@ -260,8 +394,8 @@ describe("runFetchAction", () => {
       newsletters: 2,
       papers: 0,
     });
-    expect(mockRunHydratePapersWorker).not.toHaveBeenCalled();
-    expect(mockRunEnrichPapersWorker).not.toHaveBeenCalled();
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
   });
 
   it("runs paper hydration and enrichment after fetching papers", async () => {
@@ -308,8 +442,8 @@ describe("runFetchAction", () => {
       papers: 0,
       errors: ["tweets: X API rate limited"],
     });
-    expect(mockRunHydratePapersWorker).not.toHaveBeenCalled();
-    expect(mockRunEnrichPapersWorker).not.toHaveBeenCalled();
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
   });
 
   it("returns error when fetchAllContent throws", async () => {

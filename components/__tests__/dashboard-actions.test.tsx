@@ -309,6 +309,30 @@ describe("DashboardActions", () => {
     });
   });
 
+  it("shows paper processing summary even when no new items were fetched", async () => {
+    const user = userEvent.setup();
+    mockRunFetch.mockResolvedValueOnce({
+      tweets: 0,
+      podcasts: 0,
+      newsletters: 0,
+      papers: 0,
+      paperProcessing: {
+        hydrate: { succeeded: 12, deadlineReached: false },
+        enrich: { succeeded: 12, deadlineReached: false },
+      },
+    });
+
+    render(<DashboardActions />);
+    await user.click(screen.getByRole("button", { name: /run fetch now/i }));
+
+    await waitFor(() => {
+      const status = screen.getByRole("status").textContent!;
+      expect(status).toMatch(/fetched 0 items/i);
+      expect(status).toMatch(/hydrated 12/i);
+      expect(status).toMatch(/enriched 12/i);
+    });
+  });
+
   it("treats missing counts as 0", async () => {
     const user = userEvent.setup();
     mockRunFetch.mockResolvedValueOnce({ tweets: 2 });
