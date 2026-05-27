@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -83,6 +85,21 @@ describe("GET /api/digest", () => {
 
   it("forces dynamic execution for cron requests", () => {
     expect(dynamic).toBe("force-dynamic");
+  });
+
+  it("keeps the scheduled digest cron non-blocking", () => {
+    const vercelConfig = JSON.parse(
+      readFileSync(join(process.cwd(), "vercel.json"), "utf8"),
+    ) as { crons: Array<{ path: string; schedule: string }> };
+
+    const digestCron = vercelConfig.crons.find(
+      (cron) => cron.schedule === "0 9 * * *",
+    );
+
+    expect(digestCron?.path).toBe("/api/digest");
+    expect(vercelConfig.crons.map((cron) => cron.path)).not.toContain(
+      "/api/digest?requireReady=true",
+    );
   });
 
   it("rejects requests without credentials", async () => {

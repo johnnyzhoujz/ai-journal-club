@@ -1285,33 +1285,26 @@ export async function claimNextSemanticPaper(
   const nowIso = now.toISOString();
   const leaseExpiresAtIso = new Date(now.getTime() + leaseMs).toISOString();
   const rows = (await sqlClient`
-    WITH latest_digest AS (
+    WITH recent_digest_papers AS (
       SELECT COALESCE(
-        (
-          SELECT source_item_ids
-          FROM digests
-          ORDER BY generated_at DESC
-          LIMIT 1
-        ),
+        array_agg(DISTINCT recent.feed_item_id),
         ARRAY[]::integer[]
-      ) AS source_item_ids,
-      COALESCE(
-        (
-          SELECT generated_at
-          FROM digests
-          ORDER BY generated_at DESC
-          LIMIT 1
-        ),
-        '-infinity'::timestamptz
-      ) AS generated_at
+      ) AS source_item_ids
+      FROM digests d
+      CROSS JOIN LATERAL unnest(
+        COALESCE(d.source_item_ids, ARRAY[]::integer[])
+      ) AS recent(feed_item_id)
+      WHERE d.generated_at >= ${nowIso}::timestamptz - INTERVAL '72 hours'
     ),
     candidate AS (
       SELECT pps.feed_item_id
       FROM paper_processing_state pps
       JOIN feed_items fi ON fi.id = pps.feed_item_id
-      CROSS JOIN latest_digest ld
+      CROSS JOIN recent_digest_papers rdp
       WHERE fi.source_type = 'paper'
         AND pps.deterministic_status = 'succeeded'
+        AND fi.fetched_at > ${nowIso}::timestamptz - INTERVAL '24 hours'
+        AND NOT (pps.feed_item_id = ANY(rdp.source_item_ids))
         AND pps.semantic_next_run_at <= ${nowIso}::timestamptz
         AND pps.semantic_status IN ('pending', 'failed', 'stale', 'running', 'skipped')
         AND COALESCE(fi.corpus_tier, 'archive') <> 'ignored'
@@ -1369,11 +1362,6 @@ export async function claimNextSemanticPaper(
           OR pps.lease_expires_at < ${nowIso}::timestamptz
         )
       ORDER BY
-        CASE
-          WHEN fi.fetched_at > ld.generated_at THEN 0
-          WHEN pps.feed_item_id = ANY(ld.source_item_ids) THEN 1
-          ELSE 2
-        END,
         CASE pps.semantic_status
           WHEN 'pending' THEN 0
           WHEN 'stale' THEN 0

@@ -163,8 +163,13 @@ function createSqlHarness({
 } = {}) {
   const statesById = new Map(states.map((entry) => [entry.feed_item_id, clone(entry)]));
   const papersById = new Map(papers.map((entry) => [entry.id, clone(entry) as HarnessFeedItem]));
-  const latestDigestSourceItemIdsSet = new Set(latestDigestSourceItemIds);
   const latestDigestGeneratedAtMs = new Date(latestDigestGeneratedAt).getTime();
+  const recentDigestSourceItemIds = (now: Date) => {
+    const recentDigestCutoffMs = now.getTime() - 72 * 60 * 60 * 1000;
+    return latestDigestGeneratedAtMs >= recentDigestCutoffMs
+      ? new Set(latestDigestSourceItemIds)
+      : new Set<number>();
+  };
   const availableEvidenceTableSet = new Set(availableEvidenceTables);
   const evidenceCountRows = (
     feedItemIds: number[],
@@ -621,6 +626,8 @@ function createSqlHarness({
       text.includes("semantic_status = 'running'")
     ) {
       const now = new Date(String(values[0]));
+      const freshFetchedCutoffMs = now.getTime() - 24 * 60 * 60 * 1000;
+      const recentDigestSourceItemIdsSet = recentDigestSourceItemIds(now);
       const leaseToken = String(values.at(-4));
       const leaseExpiresAt = String(values.at(-3));
       const candidates = [...statesById.values()]
@@ -633,6 +640,15 @@ function createSqlHarness({
             return false;
           }
           if (entry.deterministic_status !== "succeeded") {
+            return false;
+          }
+          const fetchedAt = paperRow.fetched_at
+            ? new Date(paperRow.fetched_at).getTime()
+            : Number.NEGATIVE_INFINITY;
+          if (fetchedAt <= freshFetchedCutoffMs) {
+            return false;
+          }
+          if (recentDigestSourceItemIdsSet.has(entry.feed_item_id)) {
             return false;
           }
           if (
@@ -651,23 +667,6 @@ function createSqlHarness({
           );
         })
         .sort((a, b) => {
-          const sourceRank = (entry: PaperProcessingState) => {
-            const paperRow = papersById.get(entry.feed_item_id)!;
-            const fetchedAt = paperRow.fetched_at
-              ? new Date(paperRow.fetched_at).getTime()
-              : Number.NEGATIVE_INFINITY;
-            if (fetchedAt > latestDigestGeneratedAtMs) {
-              return 0;
-            }
-            if (latestDigestSourceItemIdsSet.has(entry.feed_item_id)) {
-              return 1;
-            }
-            return 2;
-          };
-          const sourceDelta = sourceRank(a) - sourceRank(b);
-          if (sourceDelta !== 0) {
-            return sourceDelta;
-          }
           const statusRank = (status: PaperProcessingState["semantic_status"]) => {
             if (status === "pending" || status === "stale") {
               return 0;
@@ -1280,7 +1279,12 @@ describe("paper processing state", () => {
 
   it("does not claim archive papers for semantic rich rebuilds", async () => {
     const harness = createSqlHarness({
-      papers: [paper({ corpus_tier: "archive" })],
+      papers: [
+        paper({
+          corpus_tier: "archive",
+          fetched_at: "2026-05-22T11:00:00.000Z",
+        }),
+      ],
       states: [
         state({
           deterministic_status: "succeeded",
@@ -2389,11 +2393,16 @@ describe("paper processing state", () => {
   });
 
   it("claims deterministic-succeeded papers for semantic enrichment before digest readiness", async () => {
-    const readyPaper = paper({ id: 101, published_at: "2026-05-22T10:00:00.000Z" });
+    const readyPaper = paper({
+      id: 101,
+      published_at: "2026-05-22T10:00:00.000Z",
+      fetched_at: "2026-05-22T11:00:00.000Z",
+    });
     const pendingPaper = paper({
       id: 102,
       external_id: "2605.54321",
       published_at: "2026-05-22T11:00:00.000Z",
+      fetched_at: "2026-05-22T11:30:00.000Z",
     });
     const harness = createSqlHarness({
       papers: [readyPaper, pendingPaper],
@@ -2435,11 +2444,13 @@ describe("paper processing state", () => {
       id: 102,
       external_id: "2605.failed",
       published_at: "2026-05-22T11:00:00.000Z",
+      fetched_at: "2026-05-22T11:30:00.000Z",
     });
     const pendingPaper = paper({
       id: 101,
       external_id: "2605.pending",
       published_at: "2026-05-22T10:00:00.000Z",
+      fetched_at: "2026-05-22T11:00:00.000Z",
     });
     const harness = createSqlHarness({
       papers: [pendingPaper, failedPaper],
@@ -2477,69 +2488,21 @@ describe("paper processing state", () => {
     });
   });
 
-  it("prioritizes latest digest semantic papers before older backlog", async () => {
-    const latestDigestPaper = paper({
+  it("does not claim semantic papers fetched more than 24 hours ago", async () => {
+    const oldPaper = paper({
       id: 101,
-      external_id: "2605.latest",
-      published_at: "2026-05-16T00:00:00.000Z",
+      external_id: "2605.old",
+      published_at: "2026-05-22T11:00:00.000Z",
+      fetched_at: "2026-05-21T11:59:59.000Z",
     });
-    const newerBacklogPaper = paper({
-      id: 102,
-      external_id: "2605.backlog",
-      published_at: "2026-05-22T00:00:00.000Z",
-    });
-    const harness = createSqlHarness({
-      latestDigestSourceItemIds: [101],
-      papers: [latestDigestPaper, newerBacklogPaper],
-      states: [
-        state({
-          feed_item_id: 101,
-          deterministic_status: "succeeded",
-          semantic_status: "pending",
-          digest_ready: true,
-        }),
-        state({
-          feed_item_id: 102,
-          deterministic_status: "succeeded",
-          semantic_status: "pending",
-          digest_ready: true,
-        }),
-      ],
-    });
-
-    const claimed = await claimNextSemanticPaper(harness.sql as never, {
-      now: NOW,
-      leaseToken: "semantic-token",
-    });
-
-    expect(claimed?.paper.id).toBe(101);
-    expect(harness.stateFor(101)).toMatchObject({
-      semantic_status: "running",
-      lease_token: "semantic-token",
-    });
-    expect(harness.stateFor(102)).toMatchObject({
-      semantic_status: "pending",
-      lease_token: null,
-    });
-  });
-
-  it("prioritizes newly fetched semantic papers before latest digest cleanup", async () => {
-    const latestDigestPaper = paper({
-      id: 101,
-      external_id: "2605.latest",
-      published_at: "2026-05-22T00:00:00.000Z",
-      fetched_at: "2026-05-22T00:00:00.000Z",
-    });
-    const newlyFetchedPaper = paper({
+    const freshPaper = paper({
       id: 102,
       external_id: "2605.fresh",
-      published_at: "2026-05-21T00:00:00.000Z",
-      fetched_at: "2026-05-23T00:00:00.000Z",
+      published_at: "2026-05-22T10:00:00.000Z",
+      fetched_at: "2026-05-22T11:30:00.000Z",
     });
     const harness = createSqlHarness({
-      latestDigestGeneratedAt: "2026-05-22T12:00:00.000Z",
-      latestDigestSourceItemIds: [101],
-      papers: [latestDigestPaper, newlyFetchedPaper],
+      papers: [oldPaper, freshPaper],
       states: [
         state({
           feed_item_id: 101,
@@ -2562,13 +2525,62 @@ describe("paper processing state", () => {
     });
 
     expect(claimed?.paper.id).toBe(102);
+    expect(harness.stateFor(101)).toMatchObject({
+      semantic_status: "pending",
+      lease_token: null,
+    });
     expect(harness.stateFor(102)).toMatchObject({
       semantic_status: "running",
       lease_token: "semantic-token",
     });
+  });
+
+  it("does not claim semantic papers included in recent digests", async () => {
+    const recentlyDigestedPaper = paper({
+      id: 101,
+      external_id: "2605.digested",
+      published_at: "2026-05-22T11:00:00.000Z",
+      fetched_at: "2026-05-22T11:30:00.000Z",
+    });
+    const undigestedPaper = paper({
+      id: 102,
+      external_id: "2605.undigested",
+      published_at: "2026-05-22T10:00:00.000Z",
+      fetched_at: "2026-05-22T11:00:00.000Z",
+    });
+    const harness = createSqlHarness({
+      latestDigestGeneratedAt: "2026-05-20T12:00:00.000Z",
+      latestDigestSourceItemIds: [101],
+      papers: [recentlyDigestedPaper, undigestedPaper],
+      states: [
+        state({
+          feed_item_id: 101,
+          deterministic_status: "succeeded",
+          semantic_status: "pending",
+          digest_ready: true,
+        }),
+        state({
+          feed_item_id: 102,
+          deterministic_status: "succeeded",
+          semantic_status: "pending",
+          digest_ready: true,
+        }),
+      ],
+    });
+
+    const claimed = await claimNextSemanticPaper(harness.sql as never, {
+      now: NOW,
+      leaseToken: "semantic-token",
+    });
+
+    expect(claimed?.paper.id).toBe(102);
     expect(harness.stateFor(101)).toMatchObject({
       semantic_status: "pending",
       lease_token: null,
+    });
+    expect(harness.stateFor(102)).toMatchObject({
+      semantic_status: "running",
+      lease_token: "semantic-token",
     });
   });
 
@@ -2587,10 +2599,11 @@ describe("paper processing state", () => {
     );
 
     expect(deterministicClaim).not.toContain("CASE pps.semantic_status");
-    expect(semanticClaim).toContain("WITH latest_digest AS");
+    expect(semanticClaim).toContain("WITH recent_digest_papers AS");
     expect(semanticClaim).not.toContain("pps.digest_ready = TRUE");
-    expect(semanticClaim).toContain("ANY(ld.source_item_ids)");
-    expect(semanticClaim).toContain("fi.fetched_at > ld.generated_at");
+    expect(semanticClaim).toContain("INTERVAL '24 hours'");
+    expect(semanticClaim).toContain("INTERVAL '72 hours'");
+    expect(semanticClaim).toContain("ANY(rdp.source_item_ids)");
     expect(semanticClaim).toContain("CASE pps.semantic_status");
     expect(semanticClaim).toContain("WHEN 'pending' THEN 0");
     expect(semanticClaim).toContain("WHEN 'stale' THEN 0");
@@ -2667,7 +2680,7 @@ describe("paper processing state", () => {
 
   it("reclaims an expired running semantic lease", async () => {
     const harness = createSqlHarness({
-      papers: [paper()],
+      papers: [paper({ fetched_at: "2026-05-22T11:00:00.000Z" })],
       states: [
         state({
           deterministic_status: "succeeded",
@@ -2695,7 +2708,7 @@ describe("paper processing state", () => {
 
   it("does not reclaim an unexpired semantic lease", async () => {
     const harness = createSqlHarness({
-      papers: [paper()],
+      papers: [paper({ fetched_at: "2026-05-22T11:00:00.000Z" })],
       states: [
         state({
           deterministic_status: "succeeded",
@@ -2806,6 +2819,7 @@ describe("paper processing state", () => {
   it("backs off pending hot-set finalization when finalization fails after semantic success", async () => {
     const pendingPromotion = paper({
       corpus_tier: "archive",
+      fetched_at: NOW.toISOString(),
       tier_metadata_json: {
         lastReviewAction: "archive_to_pending_hot_set",
         retention: {
@@ -2880,6 +2894,7 @@ describe("paper processing state", () => {
   it("dead-letters pending hot-set finalization after repeated semantic finalization failures", async () => {
     const pendingPromotion = paper({
       corpus_tier: "archive",
+      fetched_at: NOW.toISOString(),
       tier_metadata_json: {
         lastReviewAction: "archive_to_pending_hot_set",
         retention: {
