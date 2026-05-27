@@ -5,6 +5,23 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { generateDigestAction, runFetchAction } from "@/app/actions";
 
+type PaperProcessingStatus = {
+  hydrate: { succeeded: number; deadlineReached?: boolean };
+  enrich: { succeeded: number; deadlineReached?: boolean };
+};
+
+function paperProcessingSummary(processing?: PaperProcessingStatus) {
+  return processing
+    ? ` Hydrated ${processing.hydrate.succeeded} and enriched ${processing.enrich.succeeded} papers.`
+    : "";
+}
+
+function paperProcessingPendingSummary(processing?: PaperProcessingStatus) {
+  return processing?.hydrate.deadlineReached || processing?.enrich.deadlineReached
+    ? " Processing is still catching up."
+    : "";
+}
+
 export function DashboardActions() {
   const router = useRouter();
   const [digestLoading, setDigestLoading] = useState(false);
@@ -20,7 +37,10 @@ export function DashboardActions() {
       if ("error" in result) {
         setDigestResult(result.error);
       } else if ("message" in result) {
-        setDigestResult(result.message);
+        const processing = result.paperProcessing;
+        setDigestResult(
+          `${result.message}${paperProcessingSummary(processing)}${paperProcessingPendingSummary(processing)}`,
+        );
       } else {
         setDigestResult(
           `Digest generated! ${result.item_count} items processed.`,
@@ -56,13 +76,8 @@ export function DashboardActions() {
           parts.push(`${papers} ${papers === 1 ? "paper" : "papers"}`);
 
         const processing = result.paperProcessing;
-        const processingSummary = processing
-          ? ` Hydrated ${processing.hydrate.succeeded} and enriched ${processing.enrich.succeeded} papers.`
-          : "";
-        const pendingSummary = processing &&
-          (processing.hydrate.deadlineReached || processing.enrich.deadlineReached)
-          ? " Processing is still catching up."
-          : "";
+        const processingSummary = paperProcessingSummary(processing);
+        const pendingSummary = paperProcessingPendingSummary(processing);
 
         const summary =
           parts.length > 0
