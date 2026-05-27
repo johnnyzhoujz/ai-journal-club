@@ -132,7 +132,7 @@ export async function generateDigestAction(force?: boolean): Promise<DigestActio
     let generation = await generateDigestWithMetadata(undefined, force);
     let result = generation.digest;
 
-    if (result) {
+    if (result && (force || generation.skippedPapers.total === 0)) {
       return await storeDigestResult(result);
     }
 
@@ -141,7 +141,7 @@ export async function generateDigestAction(force?: boolean): Promise<DigestActio
       if (extras.fetch || extras.paperProcessing) {
         generation = await generateDigestWithMetadata(undefined, force);
         result = generation.digest;
-        if (result) {
+        if (result && generation.skippedPapers.total === 0) {
           return await storeDigestResult(result, extras);
         }
       }

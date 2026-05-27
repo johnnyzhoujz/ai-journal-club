@@ -292,6 +292,104 @@ describe("generateDigestAction", () => {
     });
   });
 
+  it("does not store a partial digest while papers are still skipped after processing", async () => {
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration(null, {
+        ...emptySkippedPapers,
+        total: 28,
+        pendingIds: [1, 2],
+      }))
+      .mockResolvedValueOnce(digestGeneration({
+        content: "Partial Digest",
+        tweetCount: 0,
+        podcastCount: 0,
+        newsletterCount: 0,
+        paperCount: 1,
+        itemCount: 1,
+        sourceItemIds: [1],
+        model: "claude-haiku-4-5-20251001",
+      }, {
+        ...emptySkippedPapers,
+        total: 27,
+        pendingIds: [2],
+        rows: [
+          {
+            id: 2,
+            deterministicStatus: "succeeded",
+            semanticStatus: "stale",
+          },
+        ],
+        countsByDeterministicStatus: { succeeded: 27 },
+        countsBySemanticStatus: { stale: 27 },
+      }));
+    mockRunHydratePapersWorker.mockResolvedValueOnce(hydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValueOnce({
+      ...enrichResult,
+      deadlineReached: true,
+    });
+
+    const result = await generateDigestAction();
+
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      message: "27 papers are still being processed before a digest can be generated.",
+      paperProcessing: {
+        hydrate: hydrateResult,
+        enrich: {
+          ...enrichResult,
+          deadlineReached: true,
+        },
+      },
+    });
+    expect(mockSql).not.toHaveBeenCalled();
+  });
+
+  it("processes pending papers before storing an initially partial digest", async () => {
+    mockGenerateDigestWithMetadata
+      .mockResolvedValueOnce(digestGeneration({
+        content: "Partial Digest",
+        tweetCount: 0,
+        podcastCount: 0,
+        newsletterCount: 0,
+        paperCount: 1,
+        itemCount: 1,
+        sourceItemIds: [1],
+        model: "claude-haiku-4-5-20251001",
+      }, {
+        ...emptySkippedPapers,
+        total: 1,
+        pendingIds: [2],
+      }))
+      .mockResolvedValueOnce(digestGeneration({
+        content: "Complete Digest",
+        tweetCount: 0,
+        podcastCount: 0,
+        newsletterCount: 0,
+        paperCount: 2,
+        itemCount: 2,
+        sourceItemIds: [1, 2],
+        model: "claude-haiku-4-5-20251001",
+      }));
+    mockRunHydratePapersWorker.mockResolvedValueOnce(hydrateResult);
+    mockRunEnrichPapersWorker.mockResolvedValueOnce(enrichResult);
+    mockSql.mockResolvedValueOnce([]);
+
+    const result = await generateDigestAction();
+
+    expect(mockRunHydratePapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockRunEnrichPapersWorker).toHaveBeenCalledTimes(1);
+    expect(mockSql).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      content: "Complete Digest",
+      item_count: 2,
+      paperProcessing: {
+        hydrate: hydrateResult,
+        enrich: enrichResult,
+      },
+    });
+  });
+
   it("fetches first-run content, processes papers, and retries digest generation", async () => {
     const fetchResult = {
       tweets: 0,
