@@ -15,7 +15,7 @@
       "schedule": "40 8 * * *"
     },
     {
-      "path": "/api/digest?requireReady=true",
+      "path": "/api/digest",
       "schedule": "0 9 * * *"
     }
   ]

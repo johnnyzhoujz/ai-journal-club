@@ -107,7 +107,9 @@ existing content.
 - `/api/fetch`
 - `/api/hydrate-papers`
 - `/api/enrich-papers`
-- `/api/digest?requireReady=true`
+- `/api/digest`
 
 Each endpoint requires `Authorization: Bearer <CRON_SECRET>`, matching Vercel
-Cron behavior when `CRON_SECRET` is set.
+Cron behavior when `CRON_SECRET` is set. Use `/api/digest?requireReady=true`
+for explicit manual readiness checks that should block when fresh papers are
+not digest-ready.
