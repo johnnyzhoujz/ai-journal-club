@@ -43,6 +43,30 @@ account. That repository is usually an independent copy, not a GitHub fork, so
 it does not automatically know that `johnnyzhoujz/ai-journal-club` is its
 upstream source.
 
+### GitHub Actions Update
+
+If your deployment repo includes the **Sync from upstream** workflow:
+
+1. Open the deployment repo on GitHub.
+2. Go to **Actions**.
+3. Select **Sync from upstream**.
+4. Click **Run workflow**.
+5. Review and merge the pull request that the workflow opens.
+
+Older deployments created before this workflow was added need one manual update
+first. After that, the workflow can handle later updates through GitHub's UI.
+
+The workflow merges public updates into a branch named `sync-upstream-main` and
+opens a pull request against your repo's default branch. It does not push
+directly to `main`. If public updates conflict with your private customizations,
+the workflow fails and asks you to resolve the merge locally.
+
+If GitHub reports that the workflow cannot push a branch or open a pull request,
+enable write access for GitHub Actions in the deployment repo under **Settings**
+> **Actions** > **General** > **Workflow permissions**.
+
+### Local Update
+
 In a local checkout of your deployment repository, add the public repo as
 `upstream` once:
 
