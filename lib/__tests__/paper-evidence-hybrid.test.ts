@@ -153,6 +153,19 @@ describe("hybrid paper evidence retrieval", () => {
     });
   });
 
+  it("casts SQL section bonus parameters as double precision", async () => {
+    mockSql.mockResolvedValueOnce([]);
+
+    await runHybridQuery();
+
+    const template = mockSql.mock.calls[0][0].join(" ");
+    expect(template).toMatch(/WHEN 'result' THEN\s+::double precision/);
+    expect(template).toMatch(/WHEN 'method' THEN\s+::double precision/);
+    expect(template).toMatch(/WHEN 'limitation' THEN\s+::double precision/);
+    expect(template).toMatch(/WHEN 'abstract' THEN\s+::double precision/);
+    expect(template).toMatch(/ELSE\s+::double precision/);
+  });
+
   it("resolves tied ranks deterministically by span id", async () => {
     mockSql.mockResolvedValueOnce([
       hybridRow({

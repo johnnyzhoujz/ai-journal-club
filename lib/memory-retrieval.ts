@@ -2305,11 +2305,11 @@ export async function queryHybridPaperEvidenceRows({
           COALESCE(${HYBRID_MEMORY_FTS_WEIGHT}::double precision / (${HYBRID_MEMORY_RANK_CONSTANT} + fts.rank), 0) +
           COALESCE(${HYBRID_MEMORY_VEC_WEIGHT}::double precision / (${HYBRID_MEMORY_RANK_CONSTANT} + vec.rank), 0) +
           CASE base.section_type
-            WHEN 'result' THEN ${PAPER_EVIDENCE_SECTION_BONUS.result}
-            WHEN 'method' THEN ${PAPER_EVIDENCE_SECTION_BONUS.method}
-            WHEN 'limitation' THEN ${PAPER_EVIDENCE_SECTION_BONUS.limitation}
-            WHEN 'abstract' THEN ${PAPER_EVIDENCE_SECTION_BONUS.abstract}
-            ELSE ${PAPER_EVIDENCE_SECTION_BONUS.other}
+            WHEN 'result' THEN ${PAPER_EVIDENCE_SECTION_BONUS.result}::double precision
+            WHEN 'method' THEN ${PAPER_EVIDENCE_SECTION_BONUS.method}::double precision
+            WHEN 'limitation' THEN ${PAPER_EVIDENCE_SECTION_BONUS.limitation}::double precision
+            WHEN 'abstract' THEN ${PAPER_EVIDENCE_SECTION_BONUS.abstract}::double precision
+            ELSE ${PAPER_EVIDENCE_SECTION_BONUS.other}::double precision
           END
         ) AS rrf_score,
         (
