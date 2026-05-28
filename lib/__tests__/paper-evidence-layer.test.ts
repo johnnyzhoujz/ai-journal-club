@@ -302,4 +302,31 @@ describe("paper evidence layer", () => {
       numbers: expect.arrayContaining(["355,000 agent tool calls"]),
     });
   });
+
+  it("keeps FTS-only SQL section bonus as inline numeric literals", async () => {
+    // The hybrid SQL path casts parameterized section bonuses. This FTS-only
+    // path uses inline numeric literals, so it should stay cast-free unless the
+    // bonuses become bound parameters here too.
+    mockSql.mockResolvedValueOnce([]);
+
+    await queryPaperEvidenceLayerRows({
+      query: "any",
+      feedItemIds: [1],
+      paperCorpusScope: "default",
+      after: null,
+      before: null,
+      limitPerItem: 1,
+    });
+
+    const template = (mockSql.mock.calls[0][0] as TemplateStringsArray).join(
+      " ",
+    );
+    expect(template).toMatch(/WHEN 'result' THEN 1\.2/);
+    expect(template).toMatch(/WHEN 'method' THEN 1\.0/);
+    expect(template).toMatch(/WHEN 'limitation' THEN 0\.9/);
+    expect(template).toMatch(/WHEN 'abstract' THEN 0\.5/);
+    expect(template).not.toMatch(
+      /CASE ps\.section_type[\s\S]*?::double precision/,
+    );
+  });
 });

@@ -259,7 +259,7 @@ describe("POST /api/briefing/tool", () => {
   it("exports the required runtime configuration", () => {
     expect(runtime).toBe("nodejs");
     expect(dynamic).toBe("force-dynamic");
-    expect(maxDuration).toBe(15);
+    expect(maxDuration).toBe(30);
   });
 
   it("returns 400 for an invalid request body", async () => {

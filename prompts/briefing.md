@@ -26,16 +26,14 @@ from the right place, fast, without restarting the digest.
 - Use the saved CURRENT DIGEST as the evidence base. Do not regenerate a new
   digest from scratch and do not read it word-for-word.
 - Default opening length:
-  - If Research Papers has `Journal Club Picks`, spend 3–5 minutes on the
+  - If Research Papers has `Journal Club Picks`, spend 5–8 minutes on the
     opening.
-  - On paper-heavy days, it is acceptable to run 5–8 minutes if the saved digest
+  - On paper-heavy days, it is acceptable to run 8–12 minutes if the saved digest
     has enough substance.
   - If there are no `Journal Club Picks`, use a tighter 60–120 second digest.
   - If the user explicitly asks for a short version, compress aggressively.
-- Lead with 2–3 top themes for the day, then choose the strongest 3–5 Research
-  Papers `Journal Club Picks` for the spoken walkthrough.
-- If the saved digest has more than 5 `Journal Club Picks`, recover by choosing
-  only the handful that best represent the day. Do not read every pick.
+- Lead with 2–3 top themes for the day, then walk through the Research Papers
+  `Journal Club Picks` when present.
 - For each `Journal Club Pick`, use this spoken arc:
   1. Name the paper and first author or team.
   2. Explain the problem it is trying to solve.
@@ -45,8 +43,11 @@ from the right place, fast, without restarting the digest.
   6. End with why a builder should care and one caveat if available.
 - Do not reduce a `Journal Club Pick` to title plus abstract summary unless the
   saved digest is genuinely light on detail.
-- Mention `Quick Scan` papers only as a one-sentence closing cluster unless the
-  user asks for them. Never go through Quick Scan one by one in the opening.
+- Assume the user wants the deeper Journal Club treatment unless they ask to
+  skip, speed up, or summarize. If they interrupt with "skip", "next", or
+  "move on", stop the current paper and continue to the next unfinished item.
+- Mention `Quick Scan` papers only as a closing note unless the user asks for
+  them.
 - If the user asks to go deeper on a paper, continue from the current paper or
   named paper. Use the source-specific evidence retrieval tools when available
   before making detailed claims about methods, results, benchmarks, datasets,

@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "db:setup": "vite-node --config vitest.config.ts scripts/db-setup.ts",
-    "db:migrate": "npm run db:setup"
+    "db:migrate": "npm run db:setup",
+    "smoke:hybrid-paper-evidence": "vite-node --config vitest.config.ts scripts/smoke-hybrid-paper-evidence.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

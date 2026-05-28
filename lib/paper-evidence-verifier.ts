@@ -128,6 +128,9 @@ type PaperEvidenceAnchorKind =
   | "claim_anchor"
   | "numeric_or_detail_anchor";
 
+const PAPER_EVIDENCE_TOKEN_PATTERN =
+  /\d+(?:\.\d+)?[A-Za-z][A-Za-z0-9+#.]*(?:[-@][A-Za-z0-9+#.]+)*|[A-Za-z][A-Za-z0-9+#.]*(?:[-@][A-Za-z0-9+#.]+)*|\d+(?:\.\d+)?\s*(?:%|percent)?/g;
+
 export type PaperEvidenceChunkCandidate = MemorySearchChunkHit & {
   text?: string | null;
   chunk_index?: number | null;
@@ -179,10 +182,9 @@ function uniqueByNormalized(terms: PaperEvidenceClaimTerm[]) {
 }
 
 function extractTokens(value: string): string[] {
-  return (
-    value.match(/[A-Za-z][A-Za-z0-9+#]*(?:[-@][A-Za-z0-9+#]+)*|\d+(?:\.\d+)?\s*(?:%|percent)?/gi) ??
-    []
-  ).map(normalizeWhitespace);
+  return (value.match(PAPER_EVIDENCE_TOKEN_PATTERN) ?? []).map(
+    normalizeWhitespace,
+  );
 }
 
 function isNumberToken(token: string): boolean {
@@ -318,10 +320,9 @@ function addKubernetesPspAnchorGroups(
 }
 
 function concreteAnchorTokens(query: string): string[] {
-  return (
-    query.match(/[A-Za-z][A-Za-z0-9+#.]*(?:[-@][A-Za-z0-9+#.]+)*|\d+(?:\.\d+)?\s*(?:%|percent)?/g) ??
-    []
-  ).map(normalizeWhitespace);
+  return (query.match(PAPER_EVIDENCE_TOKEN_PATTERN) ?? []).map(
+    normalizeWhitespace,
+  );
 }
 
 function isConcreteAnchorToken(token: string): boolean {
@@ -572,7 +573,54 @@ function isDetailSensitiveQuery(query: string): boolean {
   const normalizedTokens = extractTokens(query).map((token) =>
     normalizeForMatch(token),
   );
-  return normalizedTokens.some((token) => DETAIL_TERMS.has(token));
+  const hasDetailTerms = normalizedTokens.some((token) =>
+    DETAIL_TERMS.has(token),
+  );
+  if (
+    isBroadPaperOverviewQuery(query) &&
+    !isScopedDetailOverviewQuery(query, normalizedTokens)
+  ) {
+    return false;
+  }
+  return hasDetailTerms;
+}
+
+function isBroadPaperOverviewQuery(query: string): boolean {
+  const normalized = normalizeForMatch(query);
+  return (
+    /\b(?:main|key|core|central)\s+claims?\b/.test(normalized) ||
+    /\bcontributions?\b/.test(normalized) ||
+    /\bwalk\s+(?:me\s+)?through\b/.test(normalized) ||
+    /\bwhat\s+did\b.*\b(?:talk|cover|discuss)\b/.test(normalized) ||
+    /\boverview\b|\bsummary\b|\bsummarize\b/.test(normalized)
+  );
+}
+
+function isScopedDetailOverviewQuery(
+  query: string,
+  normalizedTokens: string[],
+): boolean {
+  const detailTokens = normalizedTokens.filter((token) =>
+    DETAIL_TERMS.has(token),
+  );
+  if (detailTokens.length === 0) {
+    return false;
+  }
+
+  const normalized = normalizeForMatch(query);
+  const hasSpecificDetailTerm = detailTokens.some(
+    (token) => token !== "result" && token !== "results",
+  );
+  if (hasSpecificDetailTerm) {
+    return true;
+  }
+
+  return (
+    /\b(?:summary|summarize|overview)\b.*\bresults?\b/.test(normalized) ||
+    /\bresults?\b.*\b(?:summary|summarize|overview)\b/.test(normalized) ||
+    /\bwalk\s+(?:me\s+)?through\b.*\bresults?\b/.test(normalized) ||
+    /\bresults?\b.*\b(?:for|on|from|in|of|about)\b/.test(normalized)
+  );
 }
 
 function chunkText(hit: PaperEvidenceChunkCandidate): string {
