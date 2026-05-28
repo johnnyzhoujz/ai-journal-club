@@ -87,19 +87,12 @@ describe("GET /api/digest", () => {
     expect(dynamic).toBe("force-dynamic");
   });
 
-  it("keeps the scheduled digest cron non-blocking", () => {
+  it("does not schedule digest directly through Vercel cron", () => {
     const vercelConfig = JSON.parse(
       readFileSync(join(process.cwd(), "vercel.json"), "utf8"),
-    ) as { crons: Array<{ path: string; schedule: string }> };
+    ) as { crons?: Array<{ path: string; schedule: string }> };
 
-    const digestCron = vercelConfig.crons.find(
-      (cron) => cron.schedule === "0 9 * * *",
-    );
-
-    expect(digestCron?.path).toBe("/api/digest");
-    expect(vercelConfig.crons.map((cron) => cron.path)).not.toContain(
-      "/api/digest?requireReady=true",
-    );
+    expect(vercelConfig.crons ?? []).toEqual([]);
   });
 
   it("rejects requests without credentials", async () => {

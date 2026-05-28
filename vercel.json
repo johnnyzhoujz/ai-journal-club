@@ -1,22 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run vercel:build",
-  "crons": [
-    {
-      "path": "/api/fetch",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/hydrate-papers",
-      "schedule": "20 8 * * *"
-    },
-    {
-      "path": "/api/enrich-papers",
-      "schedule": "40 8 * * *"
-    },
-    {
-      "path": "/api/digest",
-      "schedule": "0 9 * * *"
-    }
-  ]
+  "buildCommand": "npm run vercel:build"
 }
