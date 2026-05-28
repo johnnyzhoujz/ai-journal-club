@@ -578,9 +578,9 @@ describe("generateDigest", () => {
     const payloadPaper = parsed.papers[0];
 
     expect(payloadPaper.paper_reader_profile.profile_text).toContain("profile");
-    expect(payloadPaper.paper_reader_profile.profile_text.length).toBeLessThanOrEqual(1200);
-    expect(payloadPaper.paper_evidence_cards).toHaveLength(5);
-    expect(payloadPaper.paper_evidence_cards[0].claim.length).toBeLessThanOrEqual(320);
+    expect(payloadPaper.paper_reader_profile.profile_text.length).toBeLessThanOrEqual(1800);
+    expect(payloadPaper.paper_evidence_cards).toHaveLength(8);
+    expect(payloadPaper.paper_evidence_cards[0].claim.length).toBeLessThanOrEqual(420);
     expect(payloadPaper.paper_evidence_cards[0]).toMatchObject({
       claim_type: "result",
       section_path: ["Hydrated Paper", "Results"],

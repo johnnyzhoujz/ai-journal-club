@@ -1269,7 +1269,63 @@ describe("useBriefingSession", () => {
           type: "function_call_output",
           call_id: "call-bad",
           output: JSON.stringify({
-            error: "retrieval_failed",
+            error: "invalid_arguments",
+            status: 400,
+            retryable: true,
+          }),
+        },
+      },
+      {
+        type: "response.create",
+      },
+    ]);
+  });
+
+  it("relays route status when a recoverable tool request fails", async () => {
+    const hook = await startAndOpenSession();
+    const channel = getLatestDataChannel();
+    channel.sent.length = 0;
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, 504));
+
+    await act(async () => {
+      channel.receive({
+        type: "response.function_call_arguments.done",
+        call_id: "call-timeout",
+        response_id: "response-timeout",
+        item_id: "tool-item-timeout",
+        name: "search_memory",
+        arguments:
+          '{"query":"Recursive Flow Matching","source":"paper","mode":"evidence"}',
+      });
+      channel.receive({
+        type: "response.done",
+        response: {
+          id: "response-timeout",
+          status: "completed",
+          output: [
+            {
+              type: "function_call",
+              call_id: "call-timeout",
+              name: "search_memory",
+            },
+          ],
+        },
+      });
+    });
+
+    await flushAsyncWork();
+
+    expect(hook.result.current.status).toBe("active");
+    expect(parseSentMessages(channel)).toEqual([
+      {
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: "call-timeout",
+          output: JSON.stringify({
+            error: "tool_route_failed",
+            status: 504,
             retryable: true,
           }),
         },

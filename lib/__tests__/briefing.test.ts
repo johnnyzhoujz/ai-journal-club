@@ -454,7 +454,8 @@ describe("briefing prompt", () => {
   it("still opens with a proactive digest", () => {
     expect(BRIEFING).toContain("Don't ask what to cover.");
     expect(BRIEFING).toContain("open proactively with what matters");
-    expect(BRIEFING).toContain("spend 3–5 minutes on the");
+    expect(BRIEFING).toContain("spend 5–8 minutes on the");
+    expect(BRIEFING).toContain("skip, speed up, or summarize");
     expect(BRIEFING).toContain("title plus abstract summary");
   });
 
@@ -466,6 +467,8 @@ describe("briefing prompt", () => {
     expect(BRIEFING_MEMORY).toContain('Do not phrase');
     expect(BRIEFING_MEMORY).toContain('mode: "evidence"');
     expect(BRIEFING_MEMORY).toContain("When unsure, prefer");
+    expect(BRIEFING_MEMORY).toContain("keep the first evidence query broad");
+    expect(BRIEFING_MEMORY).toContain("main claims contributions methods results");
   });
 });
 

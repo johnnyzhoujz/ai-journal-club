@@ -214,6 +214,41 @@ describe("paper evidence verifier", () => {
     expect(verification.metadata.supporting_chunk_ids).toEqual([1]);
   });
 
+  it("keeps numeric-leading paper identity tokens together for overview queries", () => {
+    const terms = extractPaperEvidenceClaimTerms(
+      "HorizonStream: Long-Horizon Attention for Streaming 3D Reconstruction main claims contributions methods results",
+    ).map((term) => term.normalized);
+
+    expect(terms).toContain("3d");
+    expect(terms).not.toContain("d");
+
+    const verification = verifyPaperEvidenceChunks({
+      query:
+        "HorizonStream: Long-Horizon Attention for Streaming 3D Reconstruction main claims contributions methods results",
+      candidateFeedItemIds: [6236],
+      hits: [
+        makeHit(
+          1,
+          6236,
+          "HorizonStream proposes a long-horizon Transformer for streaming 3D reconstruction. It factorizes geometric evidence into Geometric Linear Attention for long-range propagation, Geometric Local Attention for matching, and Metric Readout Tokens for stable scale and pose.",
+          "HorizonStream proposes a long-horizon Transformer for streaming 3D reconstruction. It factorizes geometric evidence into Geometric Linear Attention for long-range propagation, Geometric Local Attention for matching, and Metric Readout Tokens for stable scale and pose. Experiments show stable long-sequence reconstruction with bounded memory.",
+          {
+            title:
+              "HorizonStream: Long-Horizon Attention for Streaming 3D Reconstruction",
+          },
+        ),
+      ],
+    });
+
+    expect(verification.metadata.status).toBe("supports");
+    expect(
+      verification.chunks[0].anchorGroupsByKind.paper_identity_anchor,
+    ).toContain("3d");
+    expect(
+      verification.chunks[0].anchorGroupsByKind.paper_identity_anchor,
+    ).not.toContain("d");
+  });
+
   it("supports PlayCoder Flappy Bird evidence without cross-field adjacency", () => {
     const verification = verifyPaperEvidenceChunks({
       query: "PlayCoder Flappy Bird compiles but bird passes through obstacles",
@@ -324,6 +359,23 @@ describe("paper evidence verifier", () => {
   it("does not let a paper card support method or result claims", () => {
     const verification = verifyPaperEvidenceChunks({
       query: "What result score did Claw-Eval-Live report for live workflows?",
+      candidateFeedItemIds: [1831],
+      hits: [
+        makeHit(
+          1,
+          1831,
+          "Paper card: Title: Claw-Eval-Live: A Live Agent Benchmark for Evolving Real-World Workflows",
+        ),
+      ],
+    });
+
+    expect(verification.metadata.status).toBe("paper_related_only");
+    expect(verification.chunks[0].reason).toContain("paper card");
+  });
+
+  it("keeps scoped result summaries detail-sensitive", () => {
+    const verification = verifyPaperEvidenceChunks({
+      query: "Summarize benchmark results for Claw-Eval-Live live workflows",
       candidateFeedItemIds: [1831],
       hits: [
         makeHit(

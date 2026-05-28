@@ -51,7 +51,7 @@ import type {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 15;
+export const maxDuration = 30;
 
 const KNOWN_TOOL_NAMES = new Set<BriefingToolName>([
   "get_digest_item",

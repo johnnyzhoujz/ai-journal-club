@@ -35,6 +35,13 @@ QUERY RULES:
 - For paper detail questions about a named current-digest paper, include the
   paper title or name in `query`, set `source: "paper"` and `mode:
   "evidence"`, and keep `currentDigestOnly` true for the first search.
+- For broad paper walkthroughs, summaries, or key-claim requests such as
+  "what did the paper talk about?", "walk me through it", or "main/key
+  claims", keep the first evidence query broad: use the paper title plus
+  terms like "main claims contributions methods results". Do not add
+  specific benchmarks, datasets, numbers, author names, or speculative
+  mechanism details unless the user said them or a prior tool result already
+  supplied them. After evidence returns, answer from the returned passages.
 - For broad paper discovery such as "what do we have about X" or "find papers
   about X", set `source: "paper"` and `mode: "discovery"`. Discovery results
   are candidate or related papers from the indexed corpus, not verified

@@ -1608,13 +1608,13 @@ export function useBriefingSession({
         callState.argumentsText,
       );
 
-      const relayLocalFailure = () => {
+      const relayLocalFailure = (output: unknown = RELAYABLE_TOOL_FAILURE) => {
         if (runIdRef.current !== runId) {
           return;
         }
 
         setPendingToolRelay(functionCallId, {
-          output: RELAYABLE_TOOL_FAILURE,
+          output,
           requestAssistantResponse: true,
         });
         void relayToolOutputIfReady(functionCallId, runId);
@@ -1809,9 +1809,16 @@ export function useBriefingSession({
         return;
       }
 
+      const relayableRouteFailure = {
+        error: routeErrorCode ?? "tool_route_failed",
+        status: response.status,
+        retryable: true,
+      } as const;
+
       // Non-session errors (invalid_arguments, invalid_request_body,
       // tool_call_in_progress, briefing_tool_failed, etc.) are recoverable.
-      // Relay a tool failure to the model so the conversation continues.
+      // Relay the route failure to the model so the conversation continues
+      // and can answer when the user asks for the exact tool error.
       queueTraceEvent({
         eventType: "tool.result",
         responseId: callState.responseId,
@@ -1819,13 +1826,10 @@ export function useBriefingSession({
         functionCallId,
         toolName: callState.toolName,
         role: "tool",
-        resultSummaryJson: {
-          error: routeErrorCode ?? "tool_route_failed",
-          status: response.status,
-        },
+        resultSummaryJson: relayableRouteFailure,
         latencyMs: toolRouteLatencyMs,
       });
-      relayLocalFailure();
+      relayLocalFailure(relayableRouteFailure);
     },
     [
       getAssistantTextBeforeTool,

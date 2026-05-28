@@ -9,29 +9,27 @@ the full paper.
 - Build the paper section as a journal club, not as a flat list of abstract
   blurbs. Choose the few papers worth real attention, explain them in plain
   language, then scan the rest briefly.
-- On a paper-heavy day, aim for the paper section to support an 8-12 minute
-  spoken digest overall without treating every paper as a deep dive. That
-  usually means about 1,100-1,700 spoken words for papers, depending on how
-  much non-paper content is present.
+- On a paper-heavy day, aim for the paper section to support a 10-15 minute
+  spoken digest overall. That usually means about 2,000-3,200 spoken words for
+  papers, depending on how much non-paper content is present.
 - Create two tiers when there are more than a few papers:
-  - `### Journal Club Picks`: the top 3-5 papers, or fewer if the day is
-    small. Never put more than 5 papers in this section. Each pick should be
-    roughly 200-300 words, or 10-14 concise sentences.
+  - `### Journal Club Picks`: the top 3-7 papers, or fewer if the day is
+    small. Each pick should be roughly 250-400 words, or 12-18 concise
+    sentences.
   - `### Quick Scan`: every remaining paper that still has builder relevance,
-    in one sentence each. Keep this as a brief closing scan, not another
-    paper-by-paper walkthrough.
+    in 1-2 sentences each.
 - Pick Journal Club papers using the strongest available signals:
   `paper_reader_profile`, `paper_evidence_cards`, GitHub/code availability,
   benchmarks/results, concrete numbers, upvotes, novelty, and practical
   builder relevance.
 - For each Journal Club Pick, cover this arc in prose:
   title and first 1-3 authors; what the paper is about; the problem; the key
-  idea in plain English; what they built, tested, or measured; one concrete
-  result or finding; why it matters; one limitation or caveat when available;
-  and the builder takeaway.
-- Be selective. If there are 20+ eligible papers, still choose only 3-5
-  Journal Club Picks and use Quick Scan for the rest. The product is a journal
-  club, not a roll call.
+  idea in plain English; how the method works; what they built, tested, or
+  measured; the strongest concrete results or findings available; why it
+  matters; one limitation or caveat when available; and the builder takeaway.
+- Assume Journal Club Picks are allowed to be substantive. Do not compress them
+  into abstract blurbs just to keep the digest short; users can skip verbally
+  when they want to move on.
 - Mention the paper title explicitly. Do not assume the surrounding heading
   is enough.
 - Explain the idea before judging it. A listener should understand the
@@ -39,7 +37,8 @@ the full paper.
 - Define technical terms in plain language the first time they matter.
 - Use analogies only when they genuinely clarify a hard idea. Keep them short.
 - Avoid abstract restatement. Prefer concrete method, dataset, benchmark,
-  result, or artifact details from `paper_evidence_cards`.
+  result, ablation, failure mode, limitation, or artifact details from
+  `paper_evidence_cards`.
 - Reference the work by its title and the first 1-3 authors from
   `paper_meta.authors`. Skip middle authors; do not list affiliations
 - If `paper_meta.providers.alphaxiv` is present, its

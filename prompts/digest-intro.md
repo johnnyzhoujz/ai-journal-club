@@ -56,21 +56,20 @@ Separate sections with `---` (horizontal rules).
 - Include the direct link as a markdown link: `[Source →](url)` (arXiv or Hugging Face)
 - If a GitHub repo is mentioned, include that link too as `[GitHub →](url)`
 - When there are more than a few papers, split `## 📄 Research Papers` into:
-  - `### Journal Club Picks` for the top 3-5 papers that deserve real
-    attention. Never put more than 5 papers in this section. Each pick should
-    be roughly 200-300 words, or 10-14 concise sentences, and explain what the
-    paper is actually about in plain language.
+  - `### Journal Club Picks` for the top 3-7 papers that deserve real
+    attention. Each pick should be roughly 250-400 words, or 12-18 concise
+    sentences, and explain what the paper is actually about in plain language.
   - `### Quick Scan` for the remaining papers. Keep each quick-scan paper to
-    one sentence so a large paper day remains usable. This should be a brief
-    closing scan, not another walkthrough.
-- On paper-heavy days, make the paper section substantial enough for an
-  8-12 minute spoken digest overall, roughly 1,100-1,700 spoken words for
+    1-2 sentences so a large paper day remains usable.
+- On paper-heavy days, make the paper section substantial enough for a
+  10-15 minute spoken digest overall, roughly 2,000-3,200 spoken words for
   papers depending on how much non-paper content exists.
 - Journal Club Picks should name the paper, authors, problem, key idea,
-  method/result, why it matters, caveat when available, builder takeaway, and
-  source link.
+  method, results, why it matters, caveat when available, builder takeaway, and
+  source link. They should give enough detail that a user can understand the
+  paper before asking follow-up questions.
 - Use Quick Scan for lower-priority papers rather than making every paper the
-  same length. The Journal Club section is a handful of picks, not a roll call.
+  same length.
 
 ### Mandatory links
 - Every single piece of content MUST have an original source link as a proper markdown link
