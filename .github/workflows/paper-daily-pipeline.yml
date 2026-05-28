@@ -1,0 +1,83 @@
+name: Paper Daily Pipeline
+
+on:
+  schedule:
+    # 9:03 PM Pacific during daylight saving time.
+    - cron: '3 4 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Worker base URL'
+        required: false
+        default: 'https://ai-journal-club-six.vercel.app'
+      hydrate_limit:
+        description: 'Papers to claim per deterministic route invocation'
+        required: false
+        default: '20'
+      hydrate_max_rounds:
+        description: 'Maximum deterministic route invocations before stopping'
+        required: false
+        default: '20'
+      semantic_max_invocations:
+        description: 'Maximum one-paper semantic invocations before stopping'
+        required: false
+        default: '120'
+      semantic_idle_retries:
+        description: 'Consecutive no-work semantic checks before considering the queue drained'
+        required: false
+        default: '3'
+      semantic_idle_sleep_seconds:
+        description: 'Seconds to wait between no-work semantic checks'
+        required: false
+        default: '10'
+      require_semantic_drain:
+        description: 'Fail if the full semantic queue does not drain before digest'
+        required: false
+        default: false
+        type: boolean
+      run_fetch:
+        description: 'Call /api/fetch before draining paper workers'
+        required: false
+        default: true
+        type: boolean
+      run_digest:
+        description: 'Call /api/digest after worker attempts and readiness checks'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paper-daily-pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Fetch, hydrate, enrich, and digest
+    if: ${{ github.event_name != 'schedule' || vars.PAPER_WORKER_BASE_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run paper pipeline
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PAPER_WORKER_BASE_URL: ${{ vars.PAPER_WORKER_BASE_URL }}
+          PAPER_PIPELINE_BASE_URL: ${{ inputs.base_url }}
+          PAPER_PIPELINE_HYDRATE_LIMIT: ${{ inputs.hydrate_limit }}
+          PAPER_PIPELINE_HYDRATE_MAX_ROUNDS: ${{ inputs.hydrate_max_rounds }}
+          PAPER_PIPELINE_SEMANTIC_MAX_INVOCATIONS: ${{ inputs.semantic_max_invocations }}
+          PAPER_PIPELINE_SEMANTIC_IDLE_RETRIES: ${{ inputs.semantic_idle_retries }}
+          PAPER_PIPELINE_SEMANTIC_IDLE_SLEEP_SECONDS: ${{ inputs.semantic_idle_sleep_seconds }}
+          PAPER_PIPELINE_REQUIRE_SEMANTIC_DRAIN: ${{ inputs.require_semantic_drain }}
+          PAPER_PIPELINE_RUN_FETCH: ${{ inputs.run_fetch }}
+          PAPER_PIPELINE_RUN_DIGEST: ${{ inputs.run_digest }}
+        run: node scripts/run-paper-pipeline.mjs
