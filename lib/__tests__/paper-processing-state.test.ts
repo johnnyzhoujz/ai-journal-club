@@ -38,6 +38,7 @@ import {
   markDeterministicProcessingSucceeded,
   markSemanticProcessingFailed,
   markSemanticProcessingSucceeded,
+  PAPER_SEMANTIC_MAX_ATTEMPTS,
   reconcilePendingHotSetPromotions,
   type PaperProcessingState,
   type PaperProcessingStateFeedItem,
@@ -586,6 +587,7 @@ function createSqlHarness({
         !["pending", "failed", "stale", "running", "skipped"].includes(
           candidate.semantic_status,
         ) ||
+        candidate.semantic_attempt_count >= PAPER_SEMANTIC_MAX_ATTEMPTS ||
         new Date(candidate.semantic_next_run_at).getTime() > now.getTime() ||
         (
           candidate.lease_expires_at != null &&
@@ -656,6 +658,9 @@ function createSqlHarness({
               entry.semantic_status,
             )
           ) {
+            return false;
+          }
+          if (entry.semantic_attempt_count >= PAPER_SEMANTIC_MAX_ATTEMPTS) {
             return false;
           }
           if (new Date(entry.semantic_next_run_at).getTime() > now.getTime()) {
@@ -2488,6 +2493,33 @@ describe("paper processing state", () => {
     });
   });
 
+  it("does not claim failed semantic papers at the max attempt cap", async () => {
+    const harness = createSqlHarness({
+      papers: [paper({ fetched_at: "2026-05-22T11:00:00.000Z" })],
+      states: [
+        state({
+          deterministic_status: "succeeded",
+          semantic_status: "failed",
+          semantic_attempt_count: PAPER_SEMANTIC_MAX_ATTEMPTS,
+          semantic_next_run_at: "2026-05-22T11:00:00.000Z",
+          digest_ready: false,
+        }),
+      ],
+    });
+
+    const claimed = await claimNextSemanticPaper(harness.sql as never, {
+      now: NOW,
+      leaseToken: "semantic-token",
+    });
+
+    expect(claimed).toBeNull();
+    expect(harness.stateFor(101)).toMatchObject({
+      semantic_status: "failed",
+      semantic_attempt_count: PAPER_SEMANTIC_MAX_ATTEMPTS,
+      lease_token: null,
+    });
+  });
+
   it("does not claim semantic papers fetched more than 24 hours ago", async () => {
     const oldPaper = paper({
       id: 101,
@@ -2604,6 +2636,9 @@ describe("paper processing state", () => {
     expect(semanticClaim).toContain("INTERVAL '24 hours'");
     expect(semanticClaim).toContain("INTERVAL '72 hours'");
     expect(semanticClaim).toContain("ANY(rdp.source_item_ids)");
+    expect(semanticClaim).toContain(
+      "COALESCE(pps.semantic_attempt_count, 0) < ${PAPER_SEMANTIC_MAX_ATTEMPTS}",
+    );
     expect(semanticClaim).toContain("CASE pps.semantic_status");
     expect(semanticClaim).toContain("WHEN 'pending' THEN 0");
     expect(semanticClaim).toContain("WHEN 'stale' THEN 0");
@@ -2674,6 +2709,37 @@ describe("paper processing state", () => {
     });
     expect(harness.stateFor(102)).toMatchObject({
       semantic_status: "pending",
+      lease_token: null,
+    });
+  });
+
+  it("does not claim a specific semantic paper at the max attempt cap", async () => {
+    const harness = createSqlHarness({
+      papers: [paper({ fetched_at: "2026-05-22T11:00:00.000Z" })],
+      states: [
+        state({
+          deterministic_status: "succeeded",
+          semantic_status: "failed",
+          semantic_attempt_count: PAPER_SEMANTIC_MAX_ATTEMPTS,
+          semantic_next_run_at: "2026-05-22T11:00:00.000Z",
+          digest_ready: false,
+        }),
+      ],
+    });
+
+    const claim = await claimSemanticPaperByFeedItemId(
+      harness.sql as never,
+      101,
+      {
+        now: NOW,
+        leaseToken: "semantic-target-token",
+      },
+    );
+
+    expect(claim).toBeNull();
+    expect(harness.stateFor(101)).toMatchObject({
+      semantic_status: "failed",
+      semantic_attempt_count: PAPER_SEMANTIC_MAX_ATTEMPTS,
       lease_token: null,
     });
   });
@@ -2845,7 +2911,7 @@ describe("paper processing state", () => {
           deterministic_status: "succeeded",
           semantic_status: "running",
           digest_ready: true,
-          semantic_attempt_count: 2,
+          semantic_attempt_count: 1,
           lease_token: "semantic-token",
         }),
       ],
@@ -2860,7 +2926,7 @@ describe("paper processing state", () => {
       now: NOW,
       leaseToken: "retry-semantic-token",
     });
-    const retryAt = calculateRetryNextRunAt(3, NOW);
+    const retryAt = calculateRetryNextRunAt(2, NOW);
     const laterRetryClaim = await claimNextSemanticPaper(harness.sql as never, {
       now: retryAt ?? NOW,
       leaseToken: "retry-semantic-token",
@@ -2868,9 +2934,9 @@ describe("paper processing state", () => {
 
     expect(updated).toMatchObject({
       semantic_status: "failed",
-      semantic_attempt_count: 3,
+      semantic_attempt_count: 2,
       digest_ready: false,
-      semantic_next_run_at: "2026-05-22T13:00:00.000Z",
+      semantic_next_run_at: "2026-05-22T12:15:00.000Z",
       semantic_last_error: "finalize failed",
       lease_token: null,
     });
@@ -2920,7 +2986,7 @@ describe("paper processing state", () => {
           deterministic_status: "succeeded",
           semantic_status: "running",
           digest_ready: true,
-          semantic_attempt_count: 4,
+          semantic_attempt_count: 2,
           lease_token: "semantic-token",
         }),
       ],
@@ -2938,7 +3004,7 @@ describe("paper processing state", () => {
 
     expect(updated).toMatchObject({
       semantic_status: "dead",
-      semantic_attempt_count: 5,
+      semantic_attempt_count: 3,
       digest_ready: false,
       semantic_next_run_at: NOW.toISOString(),
       semantic_last_error: "finalize failed",
@@ -2947,7 +3013,7 @@ describe("paper processing state", () => {
     expect(retryClaim).toBeNull();
     expect(harness.stateFor(101)).toMatchObject({
       semantic_status: "dead",
-      semantic_attempt_count: 5,
+      semantic_attempt_count: 3,
       digest_ready: false,
       lease_token: null,
     });
@@ -3025,7 +3091,7 @@ describe("paper processing state", () => {
           deterministic_status: "succeeded",
           semantic_status: "running",
           digest_ready: false,
-          semantic_attempt_count: 4,
+          semantic_attempt_count: 2,
           lease_token: "semantic-token",
         }),
       ],
@@ -3040,13 +3106,13 @@ describe("paper processing state", () => {
 
     expect(failure).toMatchObject({
       status: "dead",
-      attemptCount: 5,
+      attemptCount: 3,
       dead: true,
       nextRunAt: null,
     });
     expect(harness.stateFor(101)).toMatchObject({
       semantic_status: "dead",
-      semantic_attempt_count: 5,
+      semantic_attempt_count: 3,
       digest_ready: false,
       lease_token: null,
     });

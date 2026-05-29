@@ -293,7 +293,7 @@ describe("GET /api/enrich-papers", () => {
     mockMarkSemanticProcessingSucceeded.mockResolvedValueOnce({
       semantic_status: "dead",
       digest_ready: false,
-      semantic_attempt_count: 5,
+      semantic_attempt_count: 3,
       semantic_next_run_at: "2026-05-22T12:00:00.000Z",
       semantic_last_error: "finalize failed",
     });
@@ -435,7 +435,7 @@ describe("GET /api/enrich-papers", () => {
     mockMarkSemanticProcessingFailed.mockResolvedValueOnce({
       feedItemId: 101,
       status: "dead",
-      attemptCount: 5,
+      attemptCount: 3,
       nextRunAt: null,
       dead: true,
     });
