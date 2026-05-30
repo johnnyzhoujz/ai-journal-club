@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  drainHydration,
+  drainSemantic,
   readPipelineConfig,
   runPaperPipeline,
   summarizeRouteBody,
@@ -21,6 +23,7 @@ function testConfig(overrides = {}) {
     semanticTimeoutSeconds: 10,
     semanticIdleRetries: 1,
     semanticIdleSleepSeconds: 0,
+    routeFailureLimit: 3,
     digestTimeoutSeconds: 10,
     requireSemanticDrain: false,
     digestRequireReady: false,
@@ -197,6 +200,147 @@ describe("run-paper-pipeline", () => {
     expect(callRoute).not.toHaveBeenCalledWith("/api/digest", expect.anything());
   });
 
+  it("continues semantic drain after a recoverable route abort", async () => {
+    const routeAbort = new Error("This operation was aborted");
+    const callRoute = vi.fn()
+      .mockResolvedValueOnce({
+        enabled: true,
+        claimed: 1,
+        succeeded: 0,
+        failed: 1,
+        dead: 0,
+        noWork: false,
+      })
+      .mockRejectedValueOnce(routeAbort)
+      .mockResolvedValueOnce({
+        enabled: true,
+        claimed: 1,
+        succeeded: 1,
+        failed: 0,
+        dead: 0,
+        noWork: false,
+      })
+      .mockResolvedValueOnce({
+        enabled: true,
+        claimed: 0,
+        succeeded: 0,
+        failed: 0,
+        dead: 0,
+        noWork: true,
+      });
+
+    const result = await drainSemantic(
+      callRoute,
+      testConfig({ semanticMaxInvocations: 4 }),
+    );
+
+    expect(callRoute).toHaveBeenCalledTimes(4);
+    expect(result).toMatchObject({
+      drained: true,
+      invocations: 4,
+      claimed: 2,
+      succeeded: 1,
+      failed: 1,
+      routeFailures: 1,
+      consecutiveRouteFailures: 0,
+      routeFailureLimitReached: false,
+    });
+    const routeError = logSpy.mock.calls
+      .map((call) => JSON.parse(String(call[0])))
+      .find((entry) => entry.event === "semantic_route_error");
+    expect(routeError).toMatchObject({
+      invocation: 2,
+      routeFailures: 1,
+      consecutiveRouteFailures: 1,
+      routeFailureLimit: 3,
+      error: "This operation was aborted",
+    });
+  });
+
+  it("continues hydration drain after a recoverable route abort", async () => {
+    const callRoute = vi.fn()
+      .mockResolvedValueOnce({
+        claimed: 20,
+        succeeded: 20,
+        failed: 0,
+        dead: 0,
+        noWork: false,
+      })
+      .mockRejectedValueOnce(new Error("This operation was aborted"))
+      .mockResolvedValueOnce({
+        claimed: 1,
+        succeeded: 1,
+        failed: 0,
+        dead: 0,
+        noWork: false,
+      })
+      .mockResolvedValueOnce({
+        claimed: 0,
+        succeeded: 0,
+        failed: 0,
+        dead: 0,
+        noWork: true,
+      });
+
+    const result = await drainHydration(
+      callRoute,
+      testConfig({ hydrateMaxRounds: 4 }),
+    );
+
+    expect(callRoute).toHaveBeenCalledTimes(4);
+    expect(result).toMatchObject({
+      drained: true,
+      rounds: 4,
+      claimed: 21,
+      succeeded: 21,
+      failed: 0,
+      routeFailures: 1,
+      consecutiveRouteFailures: 0,
+      routeFailureLimitReached: false,
+    });
+    const routeError = logSpy.mock.calls
+      .map((call) => JSON.parse(String(call[0])))
+      .find((entry) => entry.event === "hydrate_route_error");
+    expect(routeError).toMatchObject({
+      round: 2,
+      routeFailures: 1,
+      consecutiveRouteFailures: 1,
+      routeFailureLimit: 3,
+      error: "This operation was aborted",
+    });
+  });
+
+  it("stops semantic drain quickly after consecutive route failures", async () => {
+    const callRoute = vi.fn(async () => {
+      throw new Error("This operation was aborted");
+    });
+
+    const result = await drainSemantic(
+      callRoute,
+      testConfig({ semanticMaxInvocations: 10, routeFailureLimit: 3 }),
+    );
+
+    expect(callRoute).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({
+      drained: false,
+      invocations: 3,
+      claimed: 0,
+      succeeded: 0,
+      failed: 0,
+      routeFailures: 3,
+      consecutiveRouteFailures: 3,
+      routeFailureLimitReached: true,
+    });
+    const limitLog = logSpy.mock.calls
+      .map((call) => JSON.parse(String(call[0])))
+      .find((entry) => entry.event === "semantic_route_failure_limit");
+    expect(limitLog).toMatchObject({
+      routeFailures: 3,
+      consecutiveRouteFailures: 3,
+      routeFailureLimit: 3,
+    });
+  });
+
   it("continues to digest when semantic is skipped", async () => {
     const callRoute = vi.fn(async (path) => {
       if (path === "/api/fetch") {
@@ -273,6 +417,7 @@ describe("run-paper-pipeline", () => {
     expect(config.requireSemanticDrain).toBe(false);
     expect(config.digestRequireReady).toBe(false);
     expect(config.semanticMaxInvocations).toBe(2);
+    expect(config.routeFailureLimit).toBe(3);
   });
 
   it("can opt into requiring digest readiness from env", () => {

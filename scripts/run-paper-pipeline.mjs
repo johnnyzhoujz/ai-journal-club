@@ -11,6 +11,7 @@ const DEFAULT_SEMANTIC_MAX_INVOCATIONS = 120;
 const DEFAULT_SEMANTIC_TIMEOUT_SECONDS = 290;
 const DEFAULT_SEMANTIC_IDLE_RETRIES = 3;
 const DEFAULT_SEMANTIC_IDLE_SLEEP_SECONDS = 10;
+const DEFAULT_ROUTE_FAILURE_LIMIT = 3;
 const DEFAULT_DIGEST_TIMEOUT_SECONDS = 290;
 const MAX_SUMMARY_ERRORS = 5;
 
@@ -164,6 +165,10 @@ function logEvent(event, payload = {}) {
   console.log(JSON.stringify({ event, ...payload }));
 }
 
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function sleep(seconds) {
   return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 }
@@ -215,19 +220,46 @@ function validateClaimLimit(body, limit, routeName) {
 }
 
 export async function drainHydration(callRoute, config) {
+  const routeFailureLimit = config.routeFailureLimit ?? DEFAULT_ROUTE_FAILURE_LIMIT;
   const totals = {
     rounds: 0,
     claimed: 0,
     succeeded: 0,
     failed: 0,
     dead: 0,
+    routeFailures: 0,
+    consecutiveRouteFailures: 0,
+    routeFailureLimitReached: false,
   };
 
   for (let round = 1; round <= config.hydrateMaxRounds; round += 1) {
     totals.rounds = round;
-    const body = await callRoute(`/api/hydrate-papers?limit=${config.hydrateLimit}`, {
-      timeoutSeconds: config.hydrateTimeoutSeconds,
-    });
+    let body;
+    try {
+      body = await callRoute(`/api/hydrate-papers?limit=${config.hydrateLimit}`, {
+        timeoutSeconds: config.hydrateTimeoutSeconds,
+      });
+      totals.consecutiveRouteFailures = 0;
+    } catch (error) {
+      totals.routeFailures += 1;
+      totals.consecutiveRouteFailures += 1;
+      logEvent("hydrate_route_error", {
+        round,
+        routeFailures: totals.routeFailures,
+        consecutiveRouteFailures: totals.consecutiveRouteFailures,
+        routeFailureLimit,
+        error: errorMessage(error),
+      });
+      if (totals.consecutiveRouteFailures >= routeFailureLimit) {
+        totals.routeFailureLimitReached = true;
+        logEvent("hydrate_route_failure_limit", {
+          routeFailureLimit,
+          ...totals,
+        });
+        return { drained: false, ...totals };
+      }
+      continue;
+    }
 
     validateClaimLimit(body, config.hydrateLimit, "hydrate-papers");
     totals.claimed += body.claimed ?? 0;
@@ -250,20 +282,47 @@ export async function drainHydration(callRoute, config) {
 }
 
 export async function drainSemantic(callRoute, config) {
+  const routeFailureLimit = config.routeFailureLimit ?? DEFAULT_ROUTE_FAILURE_LIMIT;
   const totals = {
     invocations: 0,
     claimed: 0,
     succeeded: 0,
     failed: 0,
     dead: 0,
+    routeFailures: 0,
+    consecutiveRouteFailures: 0,
+    routeFailureLimitReached: false,
   };
   let idleCount = 0;
 
   for (let invocation = 1; invocation <= config.semanticMaxInvocations; invocation += 1) {
     totals.invocations = invocation;
-    const body = await callRoute("/api/enrich-papers?limit=1", {
-      timeoutSeconds: config.semanticTimeoutSeconds,
-    });
+    let body;
+    try {
+      body = await callRoute("/api/enrich-papers?limit=1", {
+        timeoutSeconds: config.semanticTimeoutSeconds,
+      });
+      totals.consecutiveRouteFailures = 0;
+    } catch (error) {
+      totals.routeFailures += 1;
+      totals.consecutiveRouteFailures += 1;
+      logEvent("semantic_route_error", {
+        invocation,
+        routeFailures: totals.routeFailures,
+        consecutiveRouteFailures: totals.consecutiveRouteFailures,
+        routeFailureLimit,
+        error: errorMessage(error),
+      });
+      if (totals.consecutiveRouteFailures >= routeFailureLimit) {
+        totals.routeFailureLimitReached = true;
+        logEvent("semantic_route_failure_limit", {
+          routeFailureLimit,
+          ...totals,
+        });
+        return { drained: false, ...totals };
+      }
+      continue;
+    }
 
     if (body.enabled === false || body.skipped === true) {
       logEvent("semantic_skipped", summarizeRouteBody(body));
@@ -316,6 +375,7 @@ export async function runPaperPipeline(callRoute, config) {
     hydrateLimit: config.hydrateLimit,
     hydrateMaxRounds: config.hydrateMaxRounds,
     semanticMaxInvocations: config.semanticMaxInvocations,
+    routeFailureLimit: config.routeFailureLimit,
     requireSemanticDrain: config.requireSemanticDrain,
     digestRequireReady: config.digestRequireReady,
   });
@@ -444,6 +504,12 @@ export function readPipelineConfig(env = process.env) {
       "PAPER_PIPELINE_SEMANTIC_IDLE_SLEEP_SECONDS",
       DEFAULT_SEMANTIC_IDLE_SLEEP_SECONDS,
       { min: 0, max: 600 },
+      env,
+    ),
+    routeFailureLimit: readInteger(
+      "PAPER_PIPELINE_ROUTE_FAILURE_LIMIT",
+      DEFAULT_ROUTE_FAILURE_LIMIT,
+      { min: 1, max: 20 },
       env,
     ),
     digestTimeoutSeconds: readInteger(

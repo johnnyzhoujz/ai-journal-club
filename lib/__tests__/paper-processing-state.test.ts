@@ -36,6 +36,7 @@ import {
   isPendingHotSetFinalizationAllowed,
   markDeterministicProcessingFailed,
   markDeterministicProcessingSucceeded,
+  markSemanticEmbeddingPending,
   markSemanticProcessingFailed,
   markSemanticProcessingSucceeded,
   PAPER_SEMANTIC_MAX_ATTEMPTS,
@@ -936,6 +937,35 @@ function createSqlHarness({
         lease_expires_at: null,
         semantic_last_error: null,
         last_success_at: String(values[1]),
+        updated_at: String(values[2]),
+      });
+      return [clone(row)];
+    }
+
+    if (
+      text.includes("UPDATE paper_processing_state") &&
+      text.includes("SET semantic_status = 'pending'") &&
+      text.includes("semantic_last_error")
+    ) {
+      const id = Number(values[3]);
+      const row = statesById.get(id);
+      const expectedLeaseToken = values[4] as string | null;
+      const expectedSourceHash = values[6] as string | null;
+      if (
+        !row ||
+        row.deterministic_status !== "succeeded" ||
+        (expectedLeaseToken != null && row.lease_token !== expectedLeaseToken) ||
+        (expectedSourceHash != null && row.source_hash !== expectedSourceHash)
+      ) {
+        return [];
+      }
+      Object.assign(row, {
+        semantic_status: "pending",
+        digest_ready: false,
+        semantic_next_run_at: String(values[0]),
+        semantic_last_error: String(values[1]),
+        lease_token: null,
+        lease_expires_at: null,
         updated_at: String(values[2]),
       });
       return [clone(row)];
@@ -2823,6 +2853,55 @@ describe("paper processing state", () => {
       semantic_status: "succeeded",
       digest_ready: true,
       lease_token: null,
+    });
+  });
+
+  it("parks semantic embeddings pending without incrementing attempts", async () => {
+    const harness = createSqlHarness({
+      papers: [paper({
+        published_at: "2026-05-22T11:00:00.000Z",
+        fetched_at: "2026-05-22T11:30:00.000Z",
+      })],
+      states: [
+        state({
+          source_hash: "claim-source-hash",
+          deterministic_status: "succeeded",
+          semantic_status: "running",
+          digest_ready: false,
+          semantic_attempt_count: 2,
+          lease_token: "semantic-token",
+          lease_expires_at: "2026-05-22T12:05:00.000Z",
+        }),
+      ],
+    });
+
+    const updated = await markSemanticEmbeddingPending(harness.sql as never, {
+      feedItemId: 101,
+      leaseToken: "semantic-token",
+      expectedSourceHash: "claim-source-hash",
+      reason: "semantic embeddings pending",
+      now: NOW,
+    });
+    const claimed = await claimNextSemanticPaper(harness.sql as never, {
+      now: NOW,
+      leaseToken: "retry-semantic-token",
+    });
+
+    expect(updated).toMatchObject({
+      semantic_status: "pending",
+      semantic_attempt_count: 2,
+      digest_ready: false,
+      semantic_next_run_at: NOW.toISOString(),
+      semantic_last_error: "semantic embeddings pending",
+      lease_token: null,
+      lease_expires_at: null,
+    });
+    expect(claimed?.paper.id).toBe(101);
+    expect(harness.stateFor(101)).toMatchObject({
+      semantic_status: "running",
+      semantic_attempt_count: 2,
+      digest_ready: false,
+      lease_token: "retry-semantic-token",
     });
   });
 

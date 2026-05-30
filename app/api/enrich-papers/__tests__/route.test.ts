@@ -5,22 +5,28 @@ vi.mock("@/lib/db", () => ({
   sql: vi.fn(),
 }));
 vi.mock("@/lib/paper-evidence-layer", () => ({
+  embedMissingCurrentSourceSemanticSpans: vi.fn(),
+  getCurrentSourceSemanticEvidenceStatus: vi.fn(),
   preparePaperEvidenceLayerForFeedItem: vi.fn(),
   publishPreparedPaperEvidenceLayer: vi.fn(),
 }));
 vi.mock("@/lib/paper-processing-state", () => ({
   claimNextSemanticPaper: vi.fn(),
+  markSemanticEmbeddingPending: vi.fn(),
   markSemanticProcessingFailed: vi.fn(),
   markSemanticProcessingSucceeded: vi.fn(),
 }));
 
 import { sql } from "@/lib/db";
 import {
+  embedMissingCurrentSourceSemanticSpans,
+  getCurrentSourceSemanticEvidenceStatus,
   preparePaperEvidenceLayerForFeedItem,
   publishPreparedPaperEvidenceLayer,
 } from "@/lib/paper-evidence-layer";
 import {
   claimNextSemanticPaper,
+  markSemanticEmbeddingPending,
   markSemanticProcessingFailed,
   markSemanticProcessingSucceeded,
 } from "@/lib/paper-processing-state";
@@ -35,8 +41,14 @@ const mockPreparePaperEvidenceLayerForFeedItem =
   preparePaperEvidenceLayerForFeedItem as unknown as ReturnType<typeof vi.fn>;
 const mockPublishPreparedPaperEvidenceLayer =
   publishPreparedPaperEvidenceLayer as unknown as ReturnType<typeof vi.fn>;
+const mockGetCurrentSourceSemanticEvidenceStatus =
+  getCurrentSourceSemanticEvidenceStatus as unknown as ReturnType<typeof vi.fn>;
+const mockEmbedMissingCurrentSourceSemanticSpans =
+  embedMissingCurrentSourceSemanticSpans as unknown as ReturnType<typeof vi.fn>;
 const mockClaimNextSemanticPaper =
   claimNextSemanticPaper as unknown as ReturnType<typeof vi.fn>;
+const mockMarkSemanticEmbeddingPending =
+  markSemanticEmbeddingPending as unknown as ReturnType<typeof vi.fn>;
 const mockMarkSemanticProcessingFailed =
   markSemanticProcessingFailed as unknown as ReturnType<typeof vi.fn>;
 const mockMarkSemanticProcessingSucceeded =
@@ -105,16 +117,64 @@ function preparedEvidence(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function semanticEvidenceStatus(overrides: Record<string, unknown> = {}) {
+  return {
+    feedItemId: 101,
+    sourceHash: "evidence-hash",
+    sectionCount: 2,
+    semanticSpanCount: 8,
+    cardCount: 3,
+    profileCount: 1,
+    missingEmbeddingCount: 0,
+    hasSemanticEvidence: true,
+    embeddingsComplete: true,
+    ...overrides,
+  };
+}
+
+function noSemanticEvidence() {
+  return semanticEvidenceStatus({
+    sectionCount: 0,
+    semanticSpanCount: 0,
+    cardCount: 0,
+    profileCount: 0,
+    missingEmbeddingCount: 0,
+    hasSemanticEvidence: false,
+    embeddingsComplete: false,
+  });
+}
+
 describe("GET /api/enrich-papers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     infoSpy.mockClear();
     errorSpy.mockClear();
+    mockGetCurrentSourceSemanticEvidenceStatus.mockReset();
+    mockEmbedMissingCurrentSourceSemanticSpans.mockReset();
+    mockPreparePaperEvidenceLayerForFeedItem.mockReset();
+    mockPublishPreparedPaperEvidenceLayer.mockReset();
+    mockClaimNextSemanticPaper.mockReset();
+    mockMarkSemanticEmbeddingPending.mockReset();
+    mockMarkSemanticProcessingFailed.mockReset();
+    mockMarkSemanticProcessingSucceeded.mockReset();
     process.env.CRON_SECRET = "test-secret";
     process.env.PAPER_SEMANTIC_ENRICHMENT_ENABLED = "true";
     delete process.env.PAPER_ENRICH_INTERNAL_DEADLINE_MS;
     delete process.env.PAPER_SEMANTIC_LLM_TIMEOUT_MS;
     delete process.env.PAPER_SEMANTIC_MIN_ATTEMPT_MS;
+    mockGetCurrentSourceSemanticEvidenceStatus
+      .mockResolvedValueOnce(noSemanticEvidence())
+      .mockResolvedValue(semanticEvidenceStatus({
+        missingEmbeddingCount: 8,
+        embeddingsComplete: false,
+      }));
+    mockEmbedMissingCurrentSourceSemanticSpans.mockResolvedValue(
+      semanticEvidenceStatus({
+        embeddingInputCount: 8,
+        embeddingFailedCount: 0,
+        embeddingIncomplete: false,
+      }),
+    );
     mockPreparePaperEvidenceLayerForFeedItem.mockResolvedValue(preparedEvidence());
     mockPublishPreparedPaperEvidenceLayer.mockResolvedValue({
       feedItemId: 101,
@@ -128,10 +188,18 @@ describe("GET /api/enrich-papers", () => {
       droppedSpans: 1,
       droppedClaims: 2,
       droppedAnchors: 0,
-      embeddingInputCount: 8,
+      embeddingInputCount: 0,
       embeddingFailedCount: 0,
+      embeddingIncomplete: true,
       llmInputTokens: 123,
       llmOutputTokens: 45,
+    });
+    mockMarkSemanticEmbeddingPending.mockResolvedValue({
+      semantic_status: "pending",
+      digest_ready: false,
+      semantic_attempt_count: 0,
+      semantic_next_run_at: "2026-05-22T12:00:00.000Z",
+      semantic_last_error: "semantic embeddings pending",
     });
     mockMarkSemanticProcessingSucceeded.mockResolvedValue({
       semantic_status: "succeeded",
@@ -244,6 +312,11 @@ describe("GET /api/enrich-papers", () => {
           sourceHash: "evidence-hash",
         }),
       }),
+      { embedSpans: false },
+    );
+    expect(mockEmbedMissingCurrentSourceSemanticSpans).toHaveBeenCalledWith(
+      sql,
+      expect.objectContaining({ id: 101 }),
     );
     expect(mockMarkSemanticProcessingSucceeded).toHaveBeenCalledWith(
       sql,
@@ -423,6 +496,189 @@ describe("GET /api/enrich-papers", () => {
         error: expect.any(Error),
       }),
     );
+  });
+
+  it("parks published semantic evidence when embedding budget is tight", async () => {
+    let now = 0;
+    const dateSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    mockClaimNextSemanticPaper.mockResolvedValueOnce(claim());
+    mockGetCurrentSourceSemanticEvidenceStatus
+      .mockReset()
+      .mockResolvedValueOnce(noSemanticEvidence())
+      .mockResolvedValueOnce(semanticEvidenceStatus({
+        missingEmbeddingCount: 8,
+        embeddingsComplete: false,
+      }));
+    mockPreparePaperEvidenceLayerForFeedItem.mockImplementationOnce(async () => {
+      now = 240_000;
+      return preparedEvidence();
+    });
+
+    try {
+      const res = await GET(
+        makeRequest({ Authorization: "Bearer test-secret" }),
+      );
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body).toMatchObject({
+        claimed: 1,
+        succeeded: 0,
+        failed: 0,
+        dead: 0,
+        deadlineReached: true,
+        embeddingInputCount: 0,
+        embeddingFailedCount: 0,
+        errors: [],
+      });
+      expect(mockPublishPreparedPaperEvidenceLayer).toHaveBeenCalledWith(
+        sql,
+        expect.objectContaining({ feedItemId: 101 }),
+        { embedSpans: false },
+      );
+      expect(mockMarkSemanticEmbeddingPending).toHaveBeenCalledWith(
+        sql,
+        expect.objectContaining({
+          feedItemId: 101,
+          leaseToken: "semantic-lease-token",
+          expectedSourceHash: "claim-source-hash",
+          reason: "semantic embeddings pending",
+        }),
+      );
+      expect(mockMarkSemanticProcessingSucceeded).not.toHaveBeenCalled();
+      expect(mockMarkSemanticProcessingFailed).not.toHaveBeenCalled();
+    } finally {
+      dateSpy.mockRestore();
+    }
+  });
+
+  it("parks when semantic span embeddings are incomplete", async () => {
+    mockClaimNextSemanticPaper
+      .mockResolvedValueOnce(claim())
+      .mockResolvedValueOnce(null);
+    mockEmbedMissingCurrentSourceSemanticSpans.mockResolvedValueOnce(
+      semanticEvidenceStatus({
+        missingEmbeddingCount: 2,
+        embeddingsComplete: false,
+        embeddingInputCount: 8,
+        embeddingFailedCount: 2,
+        embeddingIncomplete: true,
+      }),
+    );
+
+    const res = await GET(
+      makeRequest({ Authorization: "Bearer test-secret" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      claimed: 1,
+      succeeded: 0,
+      failed: 0,
+      dead: 0,
+      errors: [],
+      noWork: false,
+      embeddingInputCount: 8,
+      embeddingFailedCount: 2,
+    });
+    expect(mockMarkSemanticProcessingSucceeded).not.toHaveBeenCalled();
+    expect(mockMarkSemanticEmbeddingPending).toHaveBeenCalledWith(
+      sql,
+      expect.objectContaining({
+        feedItemId: 101,
+        leaseToken: "semantic-lease-token",
+        expectedSourceHash: "claim-source-hash",
+      }),
+    );
+    expect(mockMarkSemanticProcessingFailed).not.toHaveBeenCalled();
+  });
+
+  it("resumes existing current-source semantic embeddings without regenerating LLM evidence", async () => {
+    mockClaimNextSemanticPaper
+      .mockResolvedValueOnce(claim())
+      .mockResolvedValueOnce(null);
+    mockGetCurrentSourceSemanticEvidenceStatus.mockReset().mockResolvedValueOnce(
+      semanticEvidenceStatus({
+        missingEmbeddingCount: 4,
+        embeddingsComplete: false,
+      }),
+    );
+    mockEmbedMissingCurrentSourceSemanticSpans.mockResolvedValueOnce(
+      semanticEvidenceStatus({
+        missingEmbeddingCount: 0,
+        embeddingsComplete: true,
+        embeddingInputCount: 4,
+        embeddingFailedCount: 0,
+        embeddingIncomplete: false,
+      }),
+    );
+
+    const res = await GET(
+      makeRequest({ Authorization: "Bearer test-secret" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      claimed: 1,
+      succeeded: 1,
+      failed: 0,
+      dead: 0,
+      embeddingInputCount: 4,
+      noWork: true,
+    });
+    expect(mockPreparePaperEvidenceLayerForFeedItem).not.toHaveBeenCalled();
+    expect(mockPublishPreparedPaperEvidenceLayer).not.toHaveBeenCalled();
+    expect(mockEmbedMissingCurrentSourceSemanticSpans).toHaveBeenCalledWith(
+      sql,
+      expect.objectContaining({ id: 101 }),
+    );
+    expect(mockMarkSemanticProcessingSucceeded).toHaveBeenCalledWith(
+      sql,
+      expect.objectContaining({
+        feedItemId: 101,
+        leaseToken: "semantic-lease-token",
+      }),
+    );
+  });
+
+  it("does not start semantic publish when finalization budget is exhausted", async () => {
+    let now = 0;
+    const dateSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    mockClaimNextSemanticPaper.mockResolvedValueOnce(claim());
+    mockPreparePaperEvidenceLayerForFeedItem.mockImplementationOnce(async () => {
+      now = 265_000;
+      return preparedEvidence();
+    });
+
+    try {
+      const res = await GET(
+        makeRequest({ Authorization: "Bearer test-secret" }),
+      );
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body).toMatchObject({
+        claimed: 1,
+        succeeded: 0,
+        failed: 1,
+        dead: 0,
+        deadlineReached: true,
+      });
+      expect(body.errors[0].error).toContain("semantic publish skipped");
+      expect(mockPublishPreparedPaperEvidenceLayer).not.toHaveBeenCalled();
+      expect(mockMarkSemanticProcessingFailed).toHaveBeenCalledWith(
+        sql,
+        expect.objectContaining({
+          feedItemId: 101,
+          leaseToken: "semantic-lease-token",
+          error: expect.any(Error),
+        }),
+      );
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   it("marks repeated semantic failure dead", async () => {

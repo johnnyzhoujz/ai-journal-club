@@ -2244,6 +2244,46 @@ export async function markSemanticProcessingSucceeded(
   }
 }
 
+export async function markSemanticEmbeddingPending(
+  sqlClient: SqlClient,
+  {
+    feedItemId,
+    leaseToken,
+    expectedSourceHash,
+    reason = "semantic embeddings pending",
+    now = new Date(),
+  }: {
+    feedItemId: number;
+    leaseToken?: string | null;
+    expectedSourceHash?: string | null;
+    reason?: string;
+    now?: Date;
+  },
+): Promise<PaperProcessingState> {
+  const nowIso = now.toISOString();
+  const rows = (await sqlClient`
+    UPDATE paper_processing_state
+    SET semantic_status = 'pending',
+        digest_ready = FALSE,
+        semantic_next_run_at = ${nowIso}::timestamptz,
+        semantic_last_error = ${truncateError(reason)},
+        lease_token = NULL,
+        lease_expires_at = NULL,
+        updated_at = ${nowIso}::timestamptz
+    WHERE feed_item_id = ${feedItemId}
+      AND (${leaseToken ?? null}::text IS NULL OR lease_token = ${leaseToken ?? null})
+      AND (${expectedSourceHash ?? null}::text IS NULL OR source_hash = ${expectedSourceHash ?? null})
+      AND deterministic_status = 'succeeded'
+    RETURNING *
+  `) as PaperProcessingState[];
+  if (!rows[0]) {
+    throw new Error(
+      `No semantic paper processing state parked for feed_item_id=${feedItemId}`,
+    );
+  }
+  return toStateRow(rows[0]);
+}
+
 export async function markSemanticProcessingDead(
   sqlClient: SqlClient,
   {

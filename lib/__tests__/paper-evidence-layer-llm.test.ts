@@ -25,6 +25,8 @@ import { embedMemoryTexts } from "@/lib/memory-embeddings";
 import {
   PAPER_EVIDENCE_LAYER_EXTRACTOR_VERSION,
   buildPaperEvidenceLayerDrafts,
+  embedMissingCurrentSourceSemanticSpans,
+  getCurrentSourceSemanticEvidenceStatus,
   rebuildPaperEvidenceLayerForFeedItem,
 } from "../paper-evidence-layer";
 
@@ -575,5 +577,111 @@ describe("paper evidence layer LLM reader integration", () => {
         call[0].join(" ").includes("INSERT INTO paper_evidence_cards"),
       ),
     ).toBe(true);
+  });
+
+  it("resumes only a bounded batch of current-source LLM spans with missing embeddings", async () => {
+    const sqlForResume = vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const template = strings.join(" ");
+      if (
+        template.includes("SELECT id, text") &&
+        template.includes("origin = 'llm_proposition'") &&
+        template.includes("embedding IS NULL")
+      ) {
+        expect(values.at(-1)).toBe(2);
+        return [
+          { id: 301, text: "first missing proposition" },
+          { id: 302, text: "second missing proposition" },
+        ];
+      }
+      if (template.includes("UPDATE paper_evidence_spans")) {
+        return [];
+      }
+      if (template.includes("section_count")) {
+        return [{
+          section_count: 2,
+          semantic_span_count: 3,
+          card_count: 2,
+          profile_count: 1,
+          missing_embedding_count: 1,
+        }];
+      }
+      return [];
+    });
+    mockEmbedMemoryTexts.mockResolvedValueOnce({
+      embeddings: [
+        [0.11, 0.12, 0.13],
+        [0.21, 0.22, 0.23],
+      ],
+      model: "text-embedding-3-small",
+    });
+
+    const result = await embedMissingCurrentSourceSemanticSpans(
+      sqlForResume as never,
+      samplePaper,
+      { limit: 2 },
+    );
+
+    expect(mockEmbedMemoryTexts).toHaveBeenCalledWith([
+      "first missing proposition",
+      "second missing proposition",
+    ]);
+    expect(result).toMatchObject({
+      feedItemId: 42,
+      semanticSpanCount: 3,
+      missingEmbeddingCount: 1,
+      embeddingInputCount: 2,
+      embeddingFailedCount: 0,
+      embeddingIncomplete: true,
+      embeddingsComplete: false,
+    });
+    expect(
+      sqlForResume.mock.calls.filter((call) =>
+        call[0].join(" ").includes("embedding_updated_at = NOW()"),
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("reports current-source semantic embeddings complete without embedding when none are missing", async () => {
+    const sqlForResume = vi.fn(async (strings: TemplateStringsArray) => {
+      const template = strings.join(" ");
+      if (
+        template.includes("SELECT id, text") &&
+        template.includes("embedding IS NULL")
+      ) {
+        return [];
+      }
+      if (template.includes("section_count")) {
+        return [{
+          section_count: 2,
+          semantic_span_count: 3,
+          card_count: 2,
+          profile_count: 1,
+          missing_embedding_count: 0,
+        }];
+      }
+      return [];
+    });
+
+    const status = await getCurrentSourceSemanticEvidenceStatus(
+      sqlForResume as never,
+      samplePaper,
+    );
+    const result = await embedMissingCurrentSourceSemanticSpans(
+      sqlForResume as never,
+      samplePaper,
+    );
+
+    expect(status).toMatchObject({
+      hasSemanticEvidence: true,
+      embeddingsComplete: true,
+      missingEmbeddingCount: 0,
+    });
+    expect(result).toMatchObject({
+      embeddingInputCount: 0,
+      embeddingFailedCount: 0,
+      embeddingIncomplete: false,
+      embeddingsComplete: true,
+    });
+    expect(mockEmbedMemoryTexts).not.toHaveBeenCalled();
   });
 });

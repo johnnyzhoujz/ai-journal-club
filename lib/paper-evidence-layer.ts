@@ -139,6 +139,10 @@ export interface RebuildPaperEvidenceLayerOptions {
   signal?: AbortSignal;
 }
 
+export interface PublishPreparedPaperEvidenceLayerOptions {
+  embedSpans?: boolean;
+}
+
 export interface PreparedPaperEvidenceLayer {
   feedItemId: number;
   sourceHash: string | null;
@@ -165,6 +169,25 @@ export interface RebuildPaperEvidenceLayerResult {
   embeddingIncomplete?: boolean;
   llmInputTokens?: number | null;
   llmOutputTokens?: number | null;
+}
+
+export interface CurrentSourceSemanticEvidenceStatus {
+  feedItemId: number;
+  sourceHash: string;
+  sectionCount: number;
+  semanticSpanCount: number;
+  cardCount: number;
+  profileCount: number;
+  missingEmbeddingCount: number;
+  hasSemanticEvidence: boolean;
+  embeddingsComplete: boolean;
+}
+
+export interface SemanticEmbeddingResumeResult
+  extends CurrentSourceSemanticEvidenceStatus {
+  embeddingInputCount: number;
+  embeddingFailedCount: number;
+  embeddingIncomplete: boolean;
 }
 
 export interface PaperEvidenceLayerSearchRow {
@@ -1286,6 +1309,113 @@ async function embedInsertedPaperEvidenceSpans(
   return { embeddingInputCount, embeddingFailedCount };
 }
 
+export async function getCurrentSourceSemanticEvidenceStatus(
+  sqlClient: SqlClient,
+  item: Pick<MemoryBackfillFeedItem, "id" | "title" | "content" | "full_text">,
+): Promise<CurrentSourceSemanticEvidenceStatus> {
+  const sourceHash = computePaperEvidenceLayerSourceHash(item);
+  const rows = (await sqlClient`
+    SELECT
+      (
+        SELECT COUNT(*)
+        FROM paper_sections
+        WHERE feed_item_id = ${item.id}
+          AND source_hash = ${sourceHash}
+      ) AS section_count,
+      (
+        SELECT COUNT(*)
+        FROM paper_evidence_spans
+        WHERE feed_item_id = ${item.id}
+          AND source_hash = ${sourceHash}
+          AND origin = 'llm_proposition'
+      ) AS semantic_span_count,
+      (
+        SELECT COUNT(*)
+        FROM paper_evidence_cards
+        WHERE feed_item_id = ${item.id}
+          AND source_hash = ${sourceHash}
+      ) AS card_count,
+      (
+        SELECT COUNT(*)
+        FROM paper_reader_profiles
+        WHERE feed_item_id = ${item.id}
+          AND source_hash = ${sourceHash}
+      ) AS profile_count,
+      (
+        SELECT COUNT(*)
+        FROM paper_evidence_spans
+        WHERE feed_item_id = ${item.id}
+          AND source_hash = ${sourceHash}
+          AND origin = 'llm_proposition'
+          AND embedding IS NULL
+      ) AS missing_embedding_count
+  `) as Array<{
+    section_count: number | string | null;
+    semantic_span_count: number | string | null;
+    card_count: number | string | null;
+    profile_count: number | string | null;
+    missing_embedding_count: number | string | null;
+  }>;
+  const sectionCount = toInteger(rows[0]?.section_count) ?? 0;
+  const semanticSpanCount = toInteger(rows[0]?.semantic_span_count) ?? 0;
+  const cardCount = toInteger(rows[0]?.card_count) ?? 0;
+  const profileCount = toInteger(rows[0]?.profile_count) ?? 0;
+  const missingEmbeddingCount = toInteger(rows[0]?.missing_embedding_count) ?? 0;
+  const hasSemanticEvidence =
+    sectionCount > 0 &&
+    semanticSpanCount > 0 &&
+    cardCount > 0 &&
+    profileCount > 0;
+  return {
+    feedItemId: item.id,
+    sourceHash,
+    sectionCount,
+    semanticSpanCount,
+    cardCount,
+    profileCount,
+    missingEmbeddingCount,
+    hasSemanticEvidence,
+    embeddingsComplete: hasSemanticEvidence && missingEmbeddingCount === 0,
+  };
+}
+
+export async function embedMissingCurrentSourceSemanticSpans(
+  sqlClient: SqlClient,
+  item: Pick<MemoryBackfillFeedItem, "id" | "title" | "content" | "full_text">,
+  { limit = PAPER_EVIDENCE_EMBEDDING_BATCH_SIZE }: { limit?: number } = {},
+): Promise<SemanticEmbeddingResumeResult> {
+  const sourceHash = computePaperEvidenceLayerSourceHash(item);
+  const requestedLimit = Number.isFinite(limit) ? Math.trunc(limit) : 1;
+  const batchLimit = Math.max(
+    1,
+    Math.min(requestedLimit, PAPER_EVIDENCE_EMBEDDING_BATCH_SIZE),
+  );
+  const rows = (await sqlClient`
+    SELECT id, text
+    FROM paper_evidence_spans
+    WHERE feed_item_id = ${item.id}
+      AND source_hash = ${sourceHash}
+      AND origin = 'llm_proposition'
+      AND embedding IS NULL
+    ORDER BY span_index ASC, id ASC
+    LIMIT ${batchLimit}
+  `) as Array<{ id: number | string; text: string }>;
+  const spans = rows
+    .map((span) => {
+      const id = toInteger(span.id);
+      return id == null ? null : { id, text: span.text };
+    })
+    .filter((entry): entry is { id: number; text: string } => entry != null);
+  const embeddingResult = await embedInsertedPaperEvidenceSpans(sqlClient, spans);
+  const status = await getCurrentSourceSemanticEvidenceStatus(sqlClient, item);
+  return {
+    ...status,
+    embeddingInputCount: embeddingResult.embeddingInputCount,
+    embeddingFailedCount: embeddingResult.embeddingFailedCount,
+    embeddingIncomplete: status.missingEmbeddingCount > 0,
+  };
+}
+
 function validatePaperEvidenceLayerDrafts(drafts: PaperEvidenceLayerDrafts) {
   if (drafts.sections.length <= 0) {
     throw new Error("paper evidence draft has no sections");
@@ -1711,6 +1841,7 @@ export async function preparePaperEvidenceLayerForFeedItem(
 export async function publishPreparedPaperEvidenceLayer(
   sqlClient: SqlClient,
   prepared: PreparedPaperEvidenceLayer,
+  options: PublishPreparedPaperEvidenceLayerOptions = {},
 ): Promise<RebuildPaperEvidenceLayerResult> {
   if (prepared.skipped || !prepared.drafts) {
     return {
@@ -1743,7 +1874,11 @@ export async function publishPreparedPaperEvidenceLayer(
 
   let embeddingInputCount = 0;
   let embeddingFailedCount = 0;
-  if (drafts.extractorMode === "llm" && publishCounts.spans > 0) {
+  if (
+    (options.embedSpans ?? true) &&
+    drafts.extractorMode === "llm" &&
+    publishCounts.spans > 0
+  ) {
     try {
       const insertedRows = (await sqlClient`
         SELECT id, text
@@ -1788,7 +1923,10 @@ export async function publishPreparedPaperEvidenceLayer(
     droppedAnchors: drafts.droppedAnchors,
     embeddingInputCount,
     embeddingFailedCount,
-    embeddingIncomplete: embeddingFailedCount > 0,
+    embeddingIncomplete:
+      drafts.extractorMode === "llm" &&
+      publishCounts.spans > 0 &&
+      (!(options.embedSpans ?? true) || embeddingFailedCount > 0),
     llmInputTokens: drafts.llmInputTokens,
     llmOutputTokens: drafts.llmOutputTokens,
   };
