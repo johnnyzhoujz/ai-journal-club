@@ -552,7 +552,7 @@ describe("GET /api/enrich-papers", () => {
     }
   });
 
-  it("parks when semantic span embeddings are incomplete", async () => {
+  it("backs off when semantic span embeddings fail", async () => {
     mockClaimNextSemanticPaper
       .mockResolvedValueOnce(claim())
       .mockResolvedValueOnce(null);
@@ -575,23 +575,25 @@ describe("GET /api/enrich-papers", () => {
     expect(body).toMatchObject({
       claimed: 1,
       succeeded: 0,
-      failed: 0,
+      failed: 1,
       dead: 0,
-      errors: [],
-      noWork: false,
+      errors: [{
+        feedItemId: 101,
+        error: "semantic span embedding failed for feed_item_id=101; failed=2",
+      }],
       embeddingInputCount: 8,
       embeddingFailedCount: 2,
     });
     expect(mockMarkSemanticProcessingSucceeded).not.toHaveBeenCalled();
-    expect(mockMarkSemanticEmbeddingPending).toHaveBeenCalledWith(
+    expect(mockMarkSemanticEmbeddingPending).not.toHaveBeenCalled();
+    expect(mockMarkSemanticProcessingFailed).toHaveBeenCalledWith(
       sql,
       expect.objectContaining({
         feedItemId: 101,
         leaseToken: "semantic-lease-token",
-        expectedSourceHash: "claim-source-hash",
+        error: expect.any(Error),
       }),
     );
-    expect(mockMarkSemanticProcessingFailed).not.toHaveBeenCalled();
   });
 
   it("resumes existing current-source semantic embeddings without regenerating LLM evidence", async () => {
