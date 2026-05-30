@@ -150,7 +150,7 @@ export interface HotSetProcessingEnqueueResult {
 export const PAPER_PROCESSING_SOURCE_HASH_VERSION =
   "paper-processing-source:v1";
 export const PAPER_DETERMINISTIC_MAX_ATTEMPTS = 5;
-export const PAPER_SEMANTIC_MAX_ATTEMPTS = 5;
+export const PAPER_SEMANTIC_MAX_ATTEMPTS = 3;
 export const PAPER_DETERMINISTIC_LEASE_MS = 5 * 60 * 1000;
 export const PAPER_SEMANTIC_LEASE_MS = 5 * 60 * 1000;
 
@@ -1307,6 +1307,7 @@ export async function claimNextSemanticPaper(
         AND NOT (pps.feed_item_id = ANY(rdp.source_item_ids))
         AND pps.semantic_next_run_at <= ${nowIso}::timestamptz
         AND pps.semantic_status IN ('pending', 'failed', 'stale', 'running', 'skipped')
+        AND COALESCE(pps.semantic_attempt_count, 0) < ${PAPER_SEMANTIC_MAX_ATTEMPTS}
         AND COALESCE(fi.corpus_tier, 'archive') <> 'ignored'
         AND COALESCE(fi.tier_metadata_json->>'ignored', 'false') <> 'true'
         AND COALESCE(fi.tier_metadata_json->>'manualTier', '') NOT IN ('archive', 'core_canon', 'ignored')
@@ -1470,6 +1471,7 @@ export async function claimSemanticPaperByFeedItemId(
         AND pps.deterministic_status = 'succeeded'
         AND pps.semantic_next_run_at <= ${nowIso}::timestamptz
         AND pps.semantic_status IN ('pending', 'failed', 'stale', 'running', 'skipped')
+        AND COALESCE(pps.semantic_attempt_count, 0) < ${PAPER_SEMANTIC_MAX_ATTEMPTS}
         AND COALESCE(fi.corpus_tier, 'archive') <> 'ignored'
         AND COALESCE(fi.tier_metadata_json->>'ignored', 'false') <> 'true'
         AND COALESCE(fi.tier_metadata_json->>'manualTier', '') NOT IN ('archive', 'core_canon', 'ignored')
