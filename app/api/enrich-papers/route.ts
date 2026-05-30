@@ -8,11 +8,15 @@ import {
 } from "@/lib/cron-logging";
 import { sql } from "@/lib/db";
 import {
+  embedMissingCurrentSourceSemanticSpans,
+  getCurrentSourceSemanticEvidenceStatus,
   preparePaperEvidenceLayerForFeedItem,
   publishPreparedPaperEvidenceLayer,
+  type RebuildPaperEvidenceLayerResult,
 } from "@/lib/paper-evidence-layer";
 import {
   claimNextSemanticPaper,
+  markSemanticEmbeddingPending,
   markSemanticProcessingFailed,
   markSemanticProcessingSucceeded,
   type ClaimedSemanticPaper,
@@ -25,6 +29,9 @@ export const maxDuration = 300;
 const DEFAULT_INTERNAL_DEADLINE_MS = 280_000;
 const DEFAULT_LLM_TIMEOUT_MS = 280_000;
 const MIN_TIME_TO_EXIT_MS = 30_000;
+const MIN_TIME_TO_PUBLISH_SEMANTIC_MS = 15_000;
+const MIN_TIME_TO_MARK_SEMANTIC_SUCCESS_MS = 5_000;
+const MIN_TIME_TO_EMBED_SEMANTIC_SPANS_MS = 45_000;
 const DEFAULT_MIN_SEMANTIC_ATTEMPT_MS = 120_000;
 const MAX_WORKER_PAPER_LIMIT = 100;
 
@@ -60,6 +67,20 @@ class PaperSemanticTimeoutError extends Error {
     super(`semantic LLM extraction timed out after ${timeoutMs}ms`);
     this.name = "PaperSemanticTimeoutError";
   }
+}
+
+class PaperSemanticDeadlineError extends Error {
+  constructor(action: string, remainingMs: number, requiredMs: number) {
+    super(
+      `semantic ${action} skipped with ${remainingMs}ms remaining; requires at least ${requiredMs}ms`,
+    );
+    this.name = "PaperSemanticDeadlineError";
+  }
+}
+
+interface SemanticFinalizationDeadline {
+  startedAt: number;
+  deadlineMs: number;
 }
 
 function isSemanticEnrichmentEnabled() {
@@ -111,6 +132,22 @@ export function minimumSemanticClaimTimeRemainingMs({
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function semanticTimeRemainingMs(deadline: SemanticFinalizationDeadline) {
+  return Math.max(0, deadline.deadlineMs - (Date.now() - deadline.startedAt));
+}
+
+function assertSemanticTimeRemaining(
+  deadline: SemanticFinalizationDeadline,
+  action: string,
+  requiredMs: number,
+) {
+  const remainingMs = semanticTimeRemainingMs(deadline);
+  if (remainingMs < requiredMs) {
+    throw new PaperSemanticDeadlineError(action, remainingMs, requiredMs);
+  }
+  return remainingMs;
 }
 
 function semanticFinalizationRetryMessage(state: PaperProcessingState): string {
@@ -198,29 +235,141 @@ function assertValidSemanticEvidence(result: {
 export async function enrichClaimedPaperSemantically(
   claim: ClaimedSemanticPaper,
   timeoutMs: number,
+  deadline?: SemanticFinalizationDeadline,
 ) {
-  const prepared = await withTimeout(timeoutMs, (signal) =>
-    preparePaperEvidenceLayerForFeedItem(sql, claim.paper, {
-      refreshChunks: false,
-      extractorMode: "llm",
-      signal,
-    }),
+  const initialStatus = await getCurrentSourceSemanticEvidenceStatus(
+    sql,
+    claim.paper,
   );
-  assertValidSemanticEvidence({
-    skipped: prepared.skipped,
-    sections: prepared.drafts?.sections.length ?? 0,
-    spans: prepared.drafts?.spans.length ?? 0,
-    cards: prepared.drafts?.cards.length ?? 0,
-    profiles: prepared.drafts ? 1 : 0,
-  });
-  const rebuild = await publishPreparedPaperEvidenceLayer(sql, prepared);
-  assertValidSemanticEvidence(rebuild);
+  let rebuild: RebuildPaperEvidenceLayerResult = {
+    feedItemId: claim.paper.id,
+    sourceHash: initialStatus.sourceHash,
+    sections: initialStatus.sectionCount,
+    spans: initialStatus.semanticSpanCount,
+    cards: initialStatus.cardCount,
+    profiles: initialStatus.profileCount,
+    skipped: false,
+    chunksRefreshed: false,
+    droppedSpans: 0,
+    droppedClaims: 0,
+    droppedAnchors: 0,
+    embeddingInputCount: 0,
+    embeddingFailedCount: 0,
+    embeddingIncomplete: initialStatus.hasSemanticEvidence &&
+      !initialStatus.embeddingsComplete,
+    llmInputTokens: 0,
+    llmOutputTokens: 0,
+  };
+  let status = initialStatus;
+
+  if (!status.hasSemanticEvidence) {
+    const prepared = await withTimeout(timeoutMs, (signal) =>
+      preparePaperEvidenceLayerForFeedItem(sql, claim.paper, {
+        refreshChunks: false,
+        extractorMode: "llm",
+        signal,
+      }),
+    );
+    assertValidSemanticEvidence({
+      skipped: prepared.skipped,
+      sections: prepared.drafts?.sections.length ?? 0,
+      spans: prepared.drafts?.spans.length ?? 0,
+      cards: prepared.drafts?.cards.length ?? 0,
+      profiles: prepared.drafts ? 1 : 0,
+    });
+    if (deadline) {
+      assertSemanticTimeRemaining(
+        deadline,
+        "publish",
+        MIN_TIME_TO_PUBLISH_SEMANTIC_MS + MIN_TIME_TO_MARK_SEMANTIC_SUCCESS_MS,
+      );
+    }
+    rebuild = await publishPreparedPaperEvidenceLayer(sql, prepared, {
+      embedSpans: false,
+    });
+    assertValidSemanticEvidence(rebuild);
+    status = await getCurrentSourceSemanticEvidenceStatus(sql, claim.paper);
+  }
+
+  while (!status.embeddingsComplete) {
+    if (
+      deadline &&
+      semanticTimeRemainingMs(deadline) <
+        MIN_TIME_TO_EMBED_SEMANTIC_SPANS_MS + MIN_TIME_TO_MARK_SEMANTIC_SUCCESS_MS
+    ) {
+      const processingState = await markSemanticEmbeddingPending(sql, {
+        feedItemId: claim.paper.id,
+        leaseToken: claim.leaseToken,
+        expectedSourceHash: claim.state.source_hash,
+        reason: "semantic embeddings pending",
+      });
+      return {
+        ...rebuild,
+        sections: status.sectionCount,
+        spans: status.semanticSpanCount,
+        cards: status.cardCount,
+        profiles: status.profileCount,
+        embeddingIncomplete: true,
+        processingState,
+      };
+    }
+
+    const beforeMissing = status.missingEmbeddingCount;
+    const resumed = await embedMissingCurrentSourceSemanticSpans(sql, claim.paper);
+    rebuild.embeddingInputCount =
+      (rebuild.embeddingInputCount ?? 0) + resumed.embeddingInputCount;
+    rebuild.embeddingFailedCount =
+      (rebuild.embeddingFailedCount ?? 0) + resumed.embeddingFailedCount;
+    rebuild.embeddingIncomplete = resumed.embeddingIncomplete;
+    status = resumed;
+    if (
+      resumed.embeddingFailedCount > 0 ||
+      (resumed.missingEmbeddingCount > 0 &&
+        resumed.missingEmbeddingCount >= beforeMissing)
+    ) {
+      break;
+    }
+  }
+
+  if (!status.embeddingsComplete) {
+    const processingState = await markSemanticEmbeddingPending(sql, {
+      feedItemId: claim.paper.id,
+      leaseToken: claim.leaseToken,
+      expectedSourceHash: claim.state.source_hash,
+      reason: "semantic embeddings pending",
+    });
+    return {
+      ...rebuild,
+      sections: status.sectionCount,
+      spans: status.semanticSpanCount,
+      cards: status.cardCount,
+      profiles: status.profileCount,
+      embeddingIncomplete: true,
+      processingState,
+    };
+  }
+
+  if (deadline) {
+    assertSemanticTimeRemaining(
+      deadline,
+      "mark success",
+      MIN_TIME_TO_MARK_SEMANTIC_SUCCESS_MS,
+    );
+  }
   const processingState = await markSemanticProcessingSucceeded(sql, {
     feedItemId: claim.paper.id,
     leaseToken: claim.leaseToken,
     expectedSourceHash: claim.state.source_hash,
   });
-  return { ...rebuild, processingState };
+  return {
+    ...rebuild,
+    sections: status.sectionCount,
+    spans: status.semanticSpanCount,
+    cards: status.cardCount,
+    profiles: status.profileCount,
+    embeddingIncomplete: false,
+    processingState,
+  };
 }
 
 function disabledResult(
@@ -327,7 +476,44 @@ export async function runEnrichPapersWorker(
         1,
         Math.min(llmTimeoutMs, remainingMs - MIN_TIME_TO_EXIT_MS),
       );
-      const enriched = await enrichClaimedPaperSemantically(claim, timeoutMs);
+      const enriched = await enrichClaimedPaperSemantically(claim, timeoutMs, {
+        startedAt,
+        deadlineMs,
+      });
+      if (
+        enriched.processingState.semantic_status === "pending" &&
+        enriched.processingState.digest_ready !== true
+      ) {
+        result.droppedSpans += enriched.droppedSpans ?? 0;
+        result.droppedClaims += enriched.droppedClaims ?? 0;
+        result.droppedAnchors += enriched.droppedAnchors ?? 0;
+        result.embeddingInputCount += enriched.embeddingInputCount ?? 0;
+        result.embeddingFailedCount += enriched.embeddingFailedCount ?? 0;
+        result.llmInputTokens += enriched.llmInputTokens ?? 0;
+        result.llmOutputTokens += enriched.llmOutputTokens ?? 0;
+        result.deadlineReached = result.deadlineReached ||
+          semanticTimeRemainingMs({ startedAt, deadlineMs }) <
+            MIN_TIME_TO_EMBED_SEMANTIC_SPANS_MS +
+              MIN_TIME_TO_MARK_SEMANTIC_SUCCESS_MS;
+
+        logWorkerEvent("enrich-papers", {
+          event: "paper_pending",
+          feedItemId: claim.paper.id,
+          externalId: claim.paper.external_id,
+          phase: "semantic_embedding",
+          attempt,
+          durationMs: Date.now() - paperStartedAt,
+          timeRemainingMs: Math.max(0, deadlineMs - (Date.now() - startedAt)),
+          status: "pending",
+          sections: enriched.sections,
+          spans: enriched.spans,
+          cards: enriched.cards,
+          profiles: enriched.profiles,
+          embeddingInputCount: enriched.embeddingInputCount ?? 0,
+          embeddingFailedCount: enriched.embeddingFailedCount ?? 0,
+        });
+        break;
+      }
       if (
         enriched.processingState.semantic_status !== "succeeded" ||
         enriched.processingState.digest_ready !== true
@@ -396,6 +582,9 @@ export async function runEnrichPapersWorker(
         llmOutputTokens: enriched.llmOutputTokens ?? null,
       });
     } catch (error) {
+      if (error instanceof PaperSemanticDeadlineError) {
+        result.deadlineReached = true;
+      }
       const failure = await markSemanticProcessingFailed(sql, {
         feedItemId: claim.paper.id,
         leaseToken: claim.leaseToken,
