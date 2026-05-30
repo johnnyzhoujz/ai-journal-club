@@ -579,18 +579,18 @@ describe("paper evidence layer LLM reader integration", () => {
     ).toBe(true);
   });
 
-  it("resumes only a bounded batch of current-source LLM spans with missing embeddings", async () => {
+  it("resumes a bounded batch of all current-source spans with missing embeddings", async () => {
     const sqlForResume = vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const template = strings.join(" ");
       if (
         template.includes("SELECT id, text") &&
-        template.includes("origin = 'llm_proposition'") &&
         template.includes("embedding IS NULL")
       ) {
+        expect(template).not.toContain("origin = 'llm_proposition'");
         expect(values.at(-1)).toBe(2);
         return [
           { id: 301, text: "first missing proposition" },
-          { id: 302, text: "second missing proposition" },
+          { id: 302, text: "parser fallback sentence" },
         ];
       }
       if (template.includes("UPDATE paper_evidence_spans")) {
@@ -623,7 +623,7 @@ describe("paper evidence layer LLM reader integration", () => {
 
     expect(mockEmbedMemoryTexts).toHaveBeenCalledWith([
       "first missing proposition",
-      "second missing proposition",
+      "parser fallback sentence",
     ]);
     expect(result).toMatchObject({
       feedItemId: 42,

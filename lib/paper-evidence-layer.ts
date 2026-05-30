@@ -1346,7 +1346,6 @@ export async function getCurrentSourceSemanticEvidenceStatus(
         FROM paper_evidence_spans
         WHERE feed_item_id = ${item.id}
           AND source_hash = ${sourceHash}
-          AND origin = 'llm_proposition'
           AND embedding IS NULL
       ) AS missing_embedding_count
   `) as Array<{
@@ -1395,7 +1394,6 @@ export async function embedMissingCurrentSourceSemanticSpans(
     FROM paper_evidence_spans
     WHERE feed_item_id = ${item.id}
       AND source_hash = ${sourceHash}
-      AND origin = 'llm_proposition'
       AND embedding IS NULL
     ORDER BY span_index ASC, id ASC
     LIMIT ${batchLimit}

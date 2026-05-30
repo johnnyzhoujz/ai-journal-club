@@ -78,6 +78,21 @@ class PaperSemanticDeadlineError extends Error {
   }
 }
 
+class PaperSemanticEmbeddingFailedError extends Error {
+  embeddingInputCount: number;
+  embeddingFailedCount: number;
+
+  constructor(feedItemId: number, result: RebuildPaperEvidenceLayerResult) {
+    const embeddingFailedCount = result.embeddingFailedCount ?? 0;
+    super(
+      `semantic span embedding failed for feed_item_id=${feedItemId}; failed=${embeddingFailedCount}`,
+    );
+    this.name = "PaperSemanticEmbeddingFailedError";
+    this.embeddingInputCount = result.embeddingInputCount ?? 0;
+    this.embeddingFailedCount = embeddingFailedCount;
+  }
+}
+
 interface SemanticFinalizationDeadline {
   startedAt: number;
   deadlineMs: number;
@@ -329,6 +344,10 @@ export async function enrichClaimedPaperSemantically(
     ) {
       break;
     }
+  }
+
+  if (!status.embeddingsComplete && (rebuild.embeddingFailedCount ?? 0) > 0) {
+    throw new PaperSemanticEmbeddingFailedError(claim.paper.id, rebuild);
   }
 
   if (!status.embeddingsComplete) {
@@ -584,6 +603,10 @@ export async function runEnrichPapersWorker(
     } catch (error) {
       if (error instanceof PaperSemanticDeadlineError) {
         result.deadlineReached = true;
+      }
+      if (error instanceof PaperSemanticEmbeddingFailedError) {
+        result.embeddingInputCount += error.embeddingInputCount;
+        result.embeddingFailedCount += error.embeddingFailedCount;
       }
       const failure = await markSemanticProcessingFailed(sql, {
         feedItemId: claim.paper.id,
