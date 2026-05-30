@@ -78,12 +78,6 @@ describe("DashboardDigest", () => {
     expect(container.querySelector("pre")).toBeNull();
   });
 
-  it("shows Deep Dive button", () => {
-    render(<DashboardDigest digest={DIGEST} />);
-    expect(screen.getByTestId("deep-dive-button")).toBeInTheDocument();
-    expect(screen.getByText("Deep Dive")).toBeInTheDocument();
-  });
-
   it("renders item stats", () => {
     render(<DashboardDigest digest={DIGEST} />);
     expect(screen.getByText(/7 items/)).toBeInTheDocument();

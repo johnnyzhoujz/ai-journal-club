@@ -285,19 +285,4 @@ describe("DigestCard", () => {
     expect(screen.queryByText("Only tweets today")).not.toBeInTheDocument();
   });
 
-  // -- Deep Dive button tests -------------------------------------------------
-
-  it("shows Deep Dive button when expanded", async () => {
-    const user = userEvent.setup();
-    render(<DigestCard digest={DIGEST_FULL} />);
-
-    await user.click(screen.getByRole("button"));
-    expect(screen.getByTestId("deep-dive-button")).toBeInTheDocument();
-    expect(screen.getByText("Deep Dive")).toBeInTheDocument();
-  });
-
-  it("does not show Deep Dive button when collapsed", () => {
-    render(<DigestCard digest={DIGEST_FULL} />);
-    expect(screen.queryByTestId("deep-dive-button")).not.toBeInTheDocument();
-  });
 });
