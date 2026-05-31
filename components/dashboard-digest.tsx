@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, RefreshCw, Headphones } from "lucide-react";
+import { RefreshCw, Headphones } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Digest } from "@/lib/schema";
@@ -10,7 +10,6 @@ import { formatDate, pluralize } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { generateDigestAction } from "@/app/actions";
 
-const DeepDiveOverlay = lazy(() => import("./deep-dive/deep-dive-overlay"));
 const BriefingOverlay = lazy(() => import("./briefing/briefing-overlay"));
 
 interface DashboardDigestProps {
@@ -19,7 +18,6 @@ interface DashboardDigestProps {
 
 export function DashboardDigest({ digest }: DashboardDigestProps) {
   const router = useRouter();
-  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
@@ -27,11 +25,6 @@ export function DashboardDigest({ digest }: DashboardDigestProps) {
     setBriefingOpen(false);
     router.refresh();
   }, [router]);
-
-  const handleSwitchToDeepDive = useCallback(() => {
-    setBriefingOpen(false);
-    setDeepDiveOpen(true);
-  }, []);
 
   const stats = [
     digest.tweet_count > 0 && pluralize(digest.tweet_count, "tweet"),
@@ -81,15 +74,6 @@ export function DashboardDigest({ digest }: DashboardDigestProps) {
             <Headphones className="h-3.5 w-3.5 mr-1.5" />
             Start Briefing
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDeepDiveOpen(true)}
-            data-testid="deep-dive-button"
-          >
-            <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-            Deep Dive
-          </Button>
         </div>
       </div>
       <div className="text-sm">
@@ -97,21 +81,12 @@ export function DashboardDigest({ digest }: DashboardDigestProps) {
           {digest.content}
         </ReactMarkdown>
       </div>
-      {deepDiveOpen && (
-        <Suspense fallback={null}>
-          <DeepDiveOverlay
-            digest={digest}
-            onClose={() => setDeepDiveOpen(false)}
-          />
-        </Suspense>
-      )}
       {briefingOpen && (
         <Suspense fallback={null}>
           <BriefingOverlay
             digestId={digest.id}
             onClose={() => setBriefingOpen(false)}
             onStaleDigest={handleStaleDigest}
-            onSwitchToDeepDive={handleSwitchToDeepDive}
           />
         </Suspense>
       )}

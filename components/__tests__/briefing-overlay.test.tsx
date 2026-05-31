@@ -44,7 +44,6 @@ const defaultProps = {
   digestId: 42,
   onClose: vi.fn(),
   onStaleDigest: vi.fn(),
-  onSwitchToDeepDive: vi.fn(),
 };
 
 describe("BriefingOverlay", () => {
@@ -182,29 +181,6 @@ describe("BriefingOverlay", () => {
     };
     render(<BriefingOverlay {...defaultProps} />);
     expect(screen.queryByTestId("briefing-text-input")).not.toBeInTheDocument();
-  });
-
-  // -- Switch to text Deep Dive -----------------------------------------------
-
-  it("shows switch-to-deep-dive button on error", () => {
-    sessionOverrides = {
-      status: "error",
-      error: { code: "connection_failed", message: "Failed to connect" },
-    };
-    render(<BriefingOverlay {...defaultProps} />);
-    expect(screen.getByTestId("briefing-switch-deep-dive")).toBeInTheDocument();
-  });
-
-  it("calls onSwitchToDeepDive and ends session", async () => {
-    const user = userEvent.setup();
-    sessionOverrides = {
-      status: "error",
-      error: { code: "connection_failed", message: "Failed to connect" },
-    };
-    render(<BriefingOverlay {...defaultProps} />);
-    await user.click(screen.getByTestId("briefing-switch-deep-dive"));
-    expect(mockEnd).toHaveBeenCalled();
-    expect(defaultProps.onSwitchToDeepDive).toHaveBeenCalledTimes(1);
   });
 
   // -- Timer and mute controls ------------------------------------------------

@@ -1,14 +1,11 @@
 "use client";
-import { useState, lazy, Suspense } from "react";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Digest } from "@/lib/schema";
 import { markdownComponents } from "@/lib/markdown-components";
 import { formatDate, pluralize } from "@/lib/format";
-import { Button } from "@/components/ui/button";
-
-const DeepDiveOverlay = lazy(() => import("./deep-dive/deep-dive-overlay"));
 
 interface DigestCardProps {
   digest: Digest;
@@ -16,7 +13,6 @@ interface DigestCardProps {
 
 export function DigestCard({ digest }: DigestCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
 
   const stats = [
     digest.tweet_count > 0 && pluralize(digest.tweet_count, "tweet"),
@@ -50,29 +46,10 @@ export function DigestCard({ digest }: DigestCardProps) {
           data-testid="digest-content"
           className="text-sm px-4 pb-4 border-t border-border pt-4"
         >
-          <div className="mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeepDiveOpen(true)}
-              data-testid="deep-dive-button"
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-              Deep Dive
-            </Button>
-          </div>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
             {digest.content}
           </ReactMarkdown>
         </div>
-      )}
-      {deepDiveOpen && (
-        <Suspense fallback={null}>
-          <DeepDiveOverlay
-            digest={digest}
-            onClose={() => setDeepDiveOpen(false)}
-          />
-        </Suspense>
       )}
     </div>
   );

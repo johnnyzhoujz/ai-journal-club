@@ -14,6 +14,5 @@ export const SUMMARIZE_NEWSLETTER = loadPrompt("summarize-newsletter.md");
 export const SUMMARIZE_PAPERS = loadPrompt("summarize-papers.md");
 export const TRANSLATE = loadPrompt("translate.md");
 export const RESEARCH_ANSWER = loadPrompt("research-answer.md");
-export const DEEP_DIVE = loadPrompt("deep-dive.md");
 export const BRIEFING = loadPrompt("briefing.md");
 export const BRIEFING_MEMORY = loadPrompt("briefing-memory.md");

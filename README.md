@@ -17,8 +17,8 @@ digests, and voice-ready context.
   and videos into one readable briefing.
 - A realtime voice journal club that can explain the latest papers out loud and
   answer follow-up questions while you interrupt naturally.
-- Paper-grounded deep dives for methods, results, limitations, related work, and
-  "what should I read next?" questions.
+- Voice follow-ups that can go deeper on paper methods, results, limitations,
+  related work, and "what should I read next?" questions.
 - Persistent research memory, semantic enrichment, and vector search enabled by
   default on new deployments.
 - Source management for public paper feeds, newsletters, podcasts, X accounts,
@@ -41,7 +41,7 @@ the values to add in Vercel Project Settings:
 
 | Value | Use |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Digests, deep dives, paper synthesis, and semantic enrichment. |
+| `ANTHROPIC_API_KEY` | Digests, paper synthesis, and semantic enrichment. |
 | `OPENAI_API_KEY` | Realtime voice briefing and embeddings. |
 | `AUTH_PASSWORD` | The password for your app's login screen. |
 | `AUTH_SESSION_SECRET` | Signs login cookies. |

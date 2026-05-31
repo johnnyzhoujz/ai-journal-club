@@ -55,12 +55,10 @@ describe("DashboardDigest — briefing integration", () => {
     vi.clearAllMocks();
   });
 
-  it("shows both Start Briefing and Deep Dive buttons", () => {
+  it("shows Start Briefing", () => {
     render(<DashboardDigest digest={DIGEST} />);
     expect(screen.getByTestId("start-briefing-button")).toBeInTheDocument();
     expect(screen.getByText("Start Briefing")).toBeInTheDocument();
-    expect(screen.getByTestId("deep-dive-button")).toBeInTheDocument();
-    expect(screen.getByText("Deep Dive")).toBeInTheDocument();
   });
 
   it("opens briefing overlay when Start Briefing is clicked", async () => {
@@ -72,16 +70,4 @@ describe("DashboardDigest — briefing integration", () => {
     });
   });
 
-  it("keeps Deep Dive button visible and functional alongside Start Briefing", async () => {
-    const user = userEvent.setup();
-    render(<DashboardDigest digest={DIGEST} />);
-    // Both buttons present
-    expect(screen.getByTestId("start-briefing-button")).toBeInTheDocument();
-    expect(screen.getByTestId("deep-dive-button")).toBeInTheDocument();
-    // Clicking Deep Dive still works
-    await user.click(screen.getByTestId("deep-dive-button"));
-    await waitFor(() => {
-      expect(document.querySelector("[data-testid='deep-dive-backdrop']")).toBeInTheDocument();
-    });
-  });
 });

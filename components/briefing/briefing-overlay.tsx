@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { X, AlertTriangle, RefreshCw, MessageSquareText } from "lucide-react";
+import { X, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBriefingSession } from "@/hooks/use-briefing-session";
 import type { BriefingUiError, BriefingStatus } from "@/hooks/use-briefing-session";
@@ -17,7 +17,6 @@ interface BriefingOverlayProps {
   digestId: number;
   onClose: () => void;
   onStaleDigest: () => void;
-  onSwitchToDeepDive: () => void;
 }
 
 function isRetryableError(error: BriefingUiError): boolean {
@@ -30,7 +29,6 @@ export function BriefingOverlay({
   digestId,
   onClose,
   onStaleDigest,
-  onSwitchToDeepDive,
 }: BriefingOverlayProps) {
   const session = useBriefingSession({ digestId });
   const volumeBands = useMultibandVolume(session.remoteStream, 5);
@@ -97,11 +95,6 @@ export function BriefingOverlay({
   async function handleRetry() {
     session.clearError();
     await session.start();
-  }
-
-  function handleSwitchToDeepDive() {
-    session.end();
-    onSwitchToDeepDive();
   }
 
   const showControls = session.status === "active" || session.status === "connecting";
@@ -179,15 +172,6 @@ export function BriefingOverlay({
                         Try Again
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSwitchToDeepDive}
-                      data-testid="briefing-switch-deep-dive"
-                    >
-                      <MessageSquareText className="h-3.5 w-3.5 mr-1" />
-                      Switch to Text Deep Dive
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -197,7 +181,7 @@ export function BriefingOverlay({
           {/* Ended state */}
           {session.status === "ended" && (
             <div className="px-4 py-3 border-t border-border shrink-0" data-testid="briefing-ended">
-              <div className="flex justify-center gap-2">
+              <div className="flex justify-center">
                 <Button
                   variant="outline"
                   size="sm"
@@ -206,15 +190,6 @@ export function BriefingOverlay({
                 >
                   <RefreshCw className="h-3.5 w-3.5 mr-1" />
                   Start Again
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSwitchToDeepDive}
-                  data-testid="briefing-switch-deep-dive-ended"
-                >
-                  <MessageSquareText className="h-3.5 w-3.5 mr-1" />
-                  Switch to Text Deep Dive
                 </Button>
               </div>
             </div>

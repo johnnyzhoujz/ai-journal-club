@@ -275,7 +275,7 @@ function buildUiError(code: string): NonNullable<BriefingUiError> {
     case "audio_playback_failed":
       return {
         code,
-        message: "Audio playback could not start. Try Start Briefing again or switch to Text Deep Dive.",
+        message: "Audio playback could not start. Try Start Briefing again.",
       };
     case "transport_lost":
       return {
