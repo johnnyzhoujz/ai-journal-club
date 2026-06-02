@@ -47,7 +47,7 @@ function makeFeedItem(overrides: Record<string, unknown> = {}) {
 }
 
 function mockAnthropicResponse(
-  text = "AI Builders Digest — March 21, 2026\n\nTest digest content",
+  text = "AI Journal Club Digest — March 21, 2026\n\nTest digest content",
   overrides: Record<string, unknown> = {},
 ) {
   mockCreate.mockResolvedValueOnce({
@@ -102,7 +102,7 @@ describe("generateDigest", () => {
     const result = await generateDigest();
 
     expect(result).not.toBeNull();
-    expect(result!.content).toContain("AI Builders Digest");
+    expect(result!.content).toContain("AI Journal Club Digest");
     expect(result!.tweetCount).toBe(2);
     expect(result!.paperCount).toBe(1);
     expect(result!.podcastCount).toBe(1);
@@ -186,6 +186,36 @@ describe("generateDigest", () => {
     expect(callArgs.system).toContain("SUMMARIZE_PAPERS_PROMPT");
     expect(callArgs.system).not.toContain("SUMMARIZE_PODCAST_PROMPT");
     expect(callArgs.system).not.toContain("SUMMARIZE_NEWSLETTER_PROMPT");
+  });
+
+  it("places paper prompts and payload before supporting source types", async () => {
+    const tweets = [makeFeedItem({ source_type: "tweet", content: "tweet text" })];
+    const papers = [makeFeedItem({ source_type: "paper", title: "Paper" })];
+    const podcasts = [makeFeedItem({ source_type: "podcast", title: "Podcast" })];
+    const newsletters = [makeFeedItem({ source_type: "newsletter", title: "Newsletter" })];
+
+    mockSql.mockResolvedValueOnce([...tweets, ...papers]);
+    mockSql.mockResolvedValueOnce([...podcasts, ...newsletters]);
+    mockAnthropicResponse();
+
+    await generateDigest();
+
+    const callArgs = mockCreate.mock.calls[0][0];
+    const systemPrompt = callArgs.system as string;
+    expect(systemPrompt.indexOf("SUMMARIZE_PAPERS_PROMPT")).toBeLessThan(
+      systemPrompt.indexOf("SUMMARIZE_TWEETS_PROMPT"),
+    );
+
+    const userMessage = callArgs.messages[0].content as string;
+    expect(userMessage.indexOf('"papers"')).toBeLessThan(
+      userMessage.indexOf('"tweets"'),
+    );
+    expect(userMessage.indexOf('"tweets"')).toBeLessThan(
+      userMessage.indexOf('"podcasts"'),
+    );
+    expect(userMessage.indexOf('"podcasts"')).toBeLessThan(
+      userMessage.indexOf('"newsletters"'),
+    );
   });
 
   // -- User message format ------------------------------------------------------

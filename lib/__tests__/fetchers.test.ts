@@ -1432,13 +1432,13 @@ describe("stripHtml", () => {
 // -- Prompts Tests ------------------------------------------------------------
 
 describe("prompts", () => {
-  it("exports all 5 prompt constants as non-empty strings", async () => {
+  it("exports core prompt constants as non-empty strings", async () => {
     const {
       DIGEST_INTRO,
       SUMMARIZE_TWEETS,
       SUMMARIZE_PODCAST,
       SUMMARIZE_NEWSLETTER,
-      TRANSLATE,
+      SUMMARIZE_PAPERS,
     } = await import("../prompts");
 
     expect(typeof DIGEST_INTRO).toBe("string");
@@ -1453,8 +1453,8 @@ describe("prompts", () => {
     expect(typeof SUMMARIZE_NEWSLETTER).toBe("string");
     expect(SUMMARIZE_NEWSLETTER.length).toBeGreaterThan(0);
 
-    expect(typeof TRANSLATE).toBe("string");
-    expect(TRANSLATE.length).toBeGreaterThan(0);
+    expect(typeof SUMMARIZE_PAPERS).toBe("string");
+    expect(SUMMARIZE_PAPERS.length).toBeGreaterThan(0);
   });
 });
 

@@ -3,6 +3,10 @@
 You are remixing a podcast episode transcript for a busy professional who wants
 the key insights without watching the full episode.
 
+Podcasts are supporting context for AI Journal Club. Use the transcript as the
+only evidence source for this summary, and do not add outside claims or paper
+claims that are not present in the transcript.
+
 ## Instructions
 
 - Write a remix of 200-400 words

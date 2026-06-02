@@ -8,7 +8,7 @@ import { DigestCard } from "../digest-card";
 
 const DIGEST_FULL: Digest = {
   id: 1,
-  content: "AI Builders Digest\n\nTweets section\nPodcast section",
+  content: "AI Journal Club Digest\n\nTweets section\nPodcast section",
   item_count: 11,
   tweet_count: 5,
   podcast_count: 2,
@@ -60,7 +60,7 @@ const DIGEST_SINGULAR: Digest = {
 
 const DIGEST_MARKDOWN: Digest = {
   id: 10,
-  content: `# AI Builders Digest — March 21, 2026\n\n## 🐦 X / Twitter\n\n**Andrej Karpathy** (karpathy on X) released a new explainer on transformer internals. [Source →](https://x.com/karpathy/status/001)\n\n---\n\n## 🎙️ Podcasts\n\n**Lex Fridman** hosted Dario Amodei. [Source →](https://youtube.com/watch?v=abc)`,
+  content: `# AI Journal Club Digest — March 21, 2026\n\n## 🐦 X / Twitter\n\n**Andrej Karpathy** (karpathy on X) released a new explainer on transformer internals. [Source →](https://x.com/karpathy/status/001)\n\n---\n\n## 🎙️ Podcasts\n\n**Lex Fridman** hosted Dario Amodei. [Source →](https://youtube.com/watch?v=abc)`,
   item_count: 5,
   tweet_count: 1,
   podcast_count: 1,
@@ -94,7 +94,7 @@ describe("DigestCard", () => {
 
   it("does not show content in collapsed state", () => {
     render(<DigestCard digest={DIGEST_FULL} />);
-    expect(screen.queryByText("AI Builders Digest")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Journal Club Digest")).not.toBeInTheDocument();
   });
 
   it("expands to show full content on click", async () => {
@@ -102,7 +102,7 @@ describe("DigestCard", () => {
     render(<DigestCard digest={DIGEST_FULL} />);
 
     await user.click(screen.getByRole("button"));
-    expect(screen.getByText(/AI Builders Digest/)).toBeInTheDocument();
+    expect(screen.getByText(/AI Journal Club Digest/)).toBeInTheDocument();
   });
 
   it("collapses content on second click", async () => {
@@ -111,10 +111,10 @@ describe("DigestCard", () => {
 
     const button = screen.getByRole("button");
     await user.click(button);
-    expect(screen.getByText(/AI Builders Digest/)).toBeInTheDocument();
+    expect(screen.getByText(/AI Journal Club Digest/)).toBeInTheDocument();
 
     await user.click(button);
-    expect(screen.queryByText("AI Builders Digest")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Journal Club Digest")).not.toBeInTheDocument();
   });
 
   it("renders chevron icon", () => {
@@ -280,7 +280,7 @@ describe("DigestCard", () => {
     await user.click(buttons[0]);
 
     // First card expanded
-    expect(screen.getByText(/AI Builders Digest/)).toBeInTheDocument();
+    expect(screen.getByText(/AI Journal Club Digest/)).toBeInTheDocument();
     // Second card still collapsed
     expect(screen.queryByText("Only tweets today")).not.toBeInTheDocument();
   });

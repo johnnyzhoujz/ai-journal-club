@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { BRIEFING, DIGEST_INTRO, SUMMARIZE_PAPERS } from "../prompts";
+import {
+  BRIEFING,
+  DIGEST_INTRO,
+  RESEARCH_ANSWER,
+  SUMMARIZE_NEWSLETTER,
+  SUMMARIZE_PAPERS,
+  SUMMARIZE_PODCAST,
+  SUMMARIZE_TWEETS,
+} from "../prompts";
 
 describe("journal-club prompt contracts", () => {
   it("tells the paper summarizer to produce journal-club picks and quick scan papers", () => {
@@ -20,6 +28,10 @@ describe("journal-club prompt contracts", () => {
   });
 
   it("tells the final digest prompt to format papers as two tiers", () => {
+    expect(DIGEST_INTRO).toContain("# AI Journal Club Digest");
+    expect(DIGEST_INTRO.indexOf("## 📄 Research Papers")).toBeLessThan(
+      DIGEST_INTRO.indexOf("## 🐦 X / Twitter"),
+    );
     expect(DIGEST_INTRO).toContain("Research Papers` into");
     expect(DIGEST_INTRO).toContain("### Journal Club Picks");
     expect(DIGEST_INTRO).toContain("### Quick Scan");
@@ -29,6 +41,21 @@ describe("journal-club prompt contracts", () => {
     expect(DIGEST_INTRO).toContain("250-400 words");
     expect(DIGEST_INTRO).toContain("12-18 concise");
     expect(DIGEST_INTRO).toContain("Use Quick Scan for lower-priority papers");
+    expect(DIGEST_INTRO).toContain("research papers as the primary evidence base");
+  });
+
+  it("keeps research answers source-grounded and paper-first", () => {
+    expect(RESEARCH_ANSWER).toContain("research papers");
+    expect(RESEARCH_ANSWER).toContain("supporting context");
+    expect(RESEARCH_ANSWER).toContain("Prefer paper evidence");
+    expect(RESEARCH_ANSWER).toContain("Do not use outside knowledge");
+    expect(RESEARCH_ANSWER).toContain("unsupported inferences");
+  });
+
+  it("frames non-paper prompt inputs as supporting context", () => {
+    expect(SUMMARIZE_TWEETS).toContain("supporting context");
+    expect(SUMMARIZE_PODCAST).toContain("supporting context");
+    expect(SUMMARIZE_NEWSLETTER).toContain("supporting context");
   });
 
   it("tells the realtime briefing to present and deepen the saved digest format", () => {

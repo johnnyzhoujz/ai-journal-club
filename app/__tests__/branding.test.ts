@@ -13,4 +13,15 @@ describe("Branding consistency", () => {
     );
     expect(result.trim()).toBe("");
   });
+
+  it("has no accidental old digest title references in source files", () => {
+    const oldTitle = "AI" + " Builders" + " Digest";
+    const result = execSync(
+      `grep -r "${oldTitle}" --include="*.ts" --include="*.tsx" --include="*.json" --include="*.sql" . ` +
+        "--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next " +
+        "|| true",
+      { cwd: process.cwd(), encoding: "utf-8" },
+    );
+    expect(result.trim()).toBe("");
+  });
 });

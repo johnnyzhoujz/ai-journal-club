@@ -3,6 +3,9 @@
 You are summarizing a newsletter article for a busy professional who wants
 the key insights without reading the full piece.
 
+Newsletters are supporting context for AI Journal Club. Summarize only what the
+article supports, and do not fill gaps with outside knowledge.
+
 ## Instructions
 
 - Lead with the main argument or insight — what's the one thing the reader should know?
