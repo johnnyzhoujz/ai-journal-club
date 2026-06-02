@@ -84,6 +84,12 @@ const GROUP_KEY_MAP: Record<FeedItemSourceType, string> = {
   newsletter: "newsletters",
   paper: "papers",
 };
+const DIGEST_SOURCE_ORDER: FeedItemSourceType[] = [
+  "paper",
+  "tweet",
+  "podcast",
+  "newsletter",
+];
 
 export function resolveDigestModel(
   requestedModel?: string,
@@ -726,17 +732,22 @@ async function generateDigestInternal(
 
   // Build system prompt: DIGEST_INTRO + only relevant SUMMARIZE_* prompts
   const promptParts = [DIGEST_INTRO];
-  for (const sourceType of Object.keys(grouped) as FeedItemSourceType[]) {
+  for (const sourceType of DIGEST_SOURCE_ORDER) {
+    if (!grouped[sourceType]?.length) {
+      continue;
+    }
     promptParts.push(PROMPT_MAP[sourceType]);
   }
   const systemPrompt = promptParts.join("\n\n---\n\n");
 
   // Build user message: JSON grouped by source type
   const userPayload: Record<string, DigestPayloadItem[]> = {};
-  for (const [sourceType, items] of Object.entries(grouped)) {
-    userPayload[GROUP_KEY_MAP[sourceType as FeedItemSourceType]] = items.map(
-      toDigestPayloadItem,
-    );
+  for (const sourceType of DIGEST_SOURCE_ORDER) {
+    const items = grouped[sourceType];
+    if (!items?.length) {
+      continue;
+    }
+    userPayload[GROUP_KEY_MAP[sourceType]] = items.map(toDigestPayloadItem);
   }
   const userMessage = JSON.stringify(userPayload);
 

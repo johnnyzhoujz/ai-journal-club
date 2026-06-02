@@ -38,7 +38,7 @@ const requiredEnv = {
 
 const sampleDigest = {
   id: 1,
-  content: "AI Builders Digest\n\nKey highlights from today.",
+  content: "AI Journal Club Digest\n\nKey highlights from today.",
   item_count: 7,
   tweet_count: 3,
   podcast_count: 1,

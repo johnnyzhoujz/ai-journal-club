@@ -10,9 +10,9 @@
     },
     "language": {
       "type": "string",
-      "enum": ["en", "zh", "bilingual"],
+      "enum": ["en"],
       "default": "en",
-      "description": "Digest language: en (English), zh (Chinese), bilingual (both)"
+      "description": "Digest language. English is currently the only supported mode."
     },
     "timezone": {
       "type": "string",

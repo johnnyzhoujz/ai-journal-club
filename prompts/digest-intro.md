@@ -8,14 +8,14 @@ Use proper markdown formatting throughout. The digest will be rendered with a ma
 
 Start with this header (replace [Date] with today's date):
 
-# AI Builders Digest — [Date]
+# AI Journal Club Digest — [Date]
 
 Then organize content in this order, using `##` section headers:
 
+## 📄 Research Papers
 ## 🐦 X / Twitter
 ## 🎙️ Podcasts
 ## 📰 Newsletters
-## 📄 Research Papers
 
 Separate sections with `---` (horizontal rules).
 
@@ -29,6 +29,9 @@ Separate sections with `---` (horizontal rules).
 
 - Only include sources that have new content
 - Skip any source with nothing new
+- Treat research papers as the primary evidence base for the digest. Tweets,
+  podcasts, and newsletters are supporting context unless they contain direct,
+  source-linked claims that stand on their own.
 - Under each source, paste the individual summary you generated
 
 ### Podcast links
@@ -82,6 +85,8 @@ Separate sections with `---` (horizontal rules).
 
 ### No fabrication
 - Only include content that came from the feed JSON (tweets, podcasts, newsletters, and papers)
+- Do not use outside knowledge to fill gaps. If a paper summary or evidence card
+  does not support a claim, omit that claim.
 - NEVER make up quotes, opinions, or content you think someone might have said
 - NEVER speculate about someone's silence or what they might be working on
 - NEVER expand a short post into a longer summary — one-sentence input gets

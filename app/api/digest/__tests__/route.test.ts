@@ -37,7 +37,7 @@ function makeRequest(headers?: Record<string, string>, params?: string) {
 }
 
 const sampleDigestResult = {
-  content: "AI Builders Digest — March 21, 2026\n\nTest content",
+  content: "AI Journal Club Digest — March 21, 2026\n\nTest content",
   tweetCount: 3,
   podcastCount: 1,
   newsletterCount: 2,
@@ -148,7 +148,7 @@ describe("GET /api/digest", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.content).toContain("AI Builders Digest");
+    expect(body.content).toContain("AI Journal Club Digest");
     expect(body.item_count).toBe(7);
     expect(body.tweet_count).toBe(3);
     expect(body.podcast_count).toBe(1);

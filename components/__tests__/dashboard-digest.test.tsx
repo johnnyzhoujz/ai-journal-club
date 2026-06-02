@@ -22,7 +22,7 @@ const mockGenerateDigestAction = generateDigestAction as unknown as ReturnType<t
 
 const DIGEST: Digest = {
   id: 1,
-  content: `# AI Builders Digest — March 21, 2026\n\n## 🐦 X / Twitter\n\n**Garry Tan** (garrytan on X) shared insights. [Source →](https://x.com/garrytan/status/001)\n\n---\n\n## 🎙️ Podcasts\n\n**Lex Fridman** hosted Dario Amodei. [Source →](https://youtube.com/watch?v=abc)`,
+  content: `# AI Journal Club Digest — March 21, 2026\n\n## 🐦 X / Twitter\n\n**Garry Tan** (garrytan on X) shared insights. [Source →](https://x.com/garrytan/status/001)\n\n---\n\n## 🎙️ Podcasts\n\n**Lex Fridman** hosted Dario Amodei. [Source →](https://youtube.com/watch?v=abc)`,
   item_count: 7,
   tweet_count: 3,
   podcast_count: 1,
