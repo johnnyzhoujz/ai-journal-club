@@ -20,7 +20,7 @@ const STATE_LABELS: Record<GridVisualizerState, string> = {
 interface GridVisualizerProps {
   state: GridVisualizerState;
   volumeBands: number[];
-  size?: "sm" | "lg";
+  size?: "sm" | "lg" | "xl";
   className?: string;
 }
 
@@ -37,12 +37,22 @@ export function GridVisualizer({
     volumeBands,
   });
 
-  const dotSize = size === "lg" ? "w-2.5 h-2.5" : "w-1 h-1";
-  const gap = size === "lg" ? "gap-1.5" : "gap-0.5";
+  const dotClass =
+    size === "xl"
+      ? "w-4 h-4"
+      : size === "lg"
+        ? "w-2.5 h-2.5"
+        : "w-1 h-1";
+  const gapClass =
+    size === "xl"
+      ? "gap-3"
+      : size === "lg"
+        ? "gap-1.5"
+        : "gap-0.5";
 
   return (
     <div
-      className={cn("grid grid-cols-5", gap, className)}
+      className={cn("grid grid-cols-5", gapClass, className)}
       role="img"
       aria-label={STATE_LABELS[state]}
       data-testid="grid-visualizer"
@@ -52,7 +62,7 @@ export function GridVisualizer({
           <div
             key={`${r}-${c}`}
             className={cn(
-              dotSize,
+              dotClass,
               "rounded-full bg-current transition-opacity duration-150",
               highlighted ? "opacity-100" : "opacity-10",
             )}

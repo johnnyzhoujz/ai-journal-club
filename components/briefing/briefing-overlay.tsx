@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { X, AlertTriangle, RefreshCw } from "lucide-react";
+import { X, AlertTriangle, RefreshCw, Mic, MicOff, PhoneOff, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBriefingSession } from "@/hooks/use-briefing-session";
 import type { BriefingUiError, BriefingStatus } from "@/hooks/use-briefing-session";
@@ -11,7 +11,16 @@ import { useMultibandVolume } from "@/hooks/use-multiband-volume";
 import type { GridVisualizerState } from "@/hooks/use-grid-visualizer";
 import { GridVisualizer } from "./grid-visualizer";
 import { TranscriptFeed } from "./transcript-feed";
-import { BriefingControls } from "./briefing-controls";
+import { BriefingStatusIndicator } from "./briefing-status-indicator";
+
+const BRIEFING_TRANSCRIPT_ENABLED =
+  process.env.NEXT_PUBLIC_BRIEFING_TRANSCRIPT_ENABLED === "true";
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 interface BriefingOverlayProps {
   digestId: number;
@@ -122,45 +131,72 @@ export function BriefingOverlay({
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
       >
         <div
-          className="relative w-full sm:w-[90vw] sm:max-w-[1100px] h-[50vh] sm:h-[380px] bg-background rounded-t-xl sm:rounded-xl border border-border shadow-2xl overflow-hidden pointer-events-auto flex flex-col"
+          className="relative w-full sm:w-[90vw] sm:max-w-[1100px] h-[50vh] sm:h-[420px] bg-background rounded-t-xl sm:rounded-xl border border-border shadow-2xl overflow-hidden pointer-events-auto flex flex-col"
           data-testid="briefing-overlay"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header — minimal */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              {session.status === "connecting" && "Connecting…"}
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-3 shrink-0">
+            <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+              {session.status === "connecting" && "Connecting"}
               {session.status === "active" && "Briefing"}
               {session.status === "error" && "Briefing Error"}
               {session.status === "ended" && "Briefing Ended"}
-              {session.status === "idle" && "Starting…"}
+              {session.status === "idle" && "Starting"}
             </h2>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleClose}
-              aria-label="Close briefing"
-              data-testid="briefing-close-button"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-3">
+              {(showControls || session.status === "ended") && (
+                <span
+                  className="text-sm text-muted-foreground font-mono tabular-nums"
+                  data-testid="briefing-timer"
+                >
+                  {formatTime(session.elapsedSeconds)}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleClose}
+                aria-label="Close briefing"
+                data-testid="briefing-close-button"
+                className="rounded-full"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          {/* Teleprompter transcript — top section, takes available space */}
-          <TranscriptFeed
-            items={session.transcriptItems}
-            isAudioPlaying={session.isAiSpeaking || hasAudioVolume}
-            className="flex-1 min-h-0"
-          />
+          {/* Center stage: native audio visualizer. */}
+          {showControls && (
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-10">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="text-primary"
+              >
+                <GridVisualizer state={gridState} volumeBands={volumeBands} size="xl" />
+              </motion.div>
+              <BriefingStatusIndicator state={gridState} />
+            </div>
+          )}
+
+          {BRIEFING_TRANSCRIPT_ENABLED && (
+            <TranscriptFeed
+              items={session.transcriptItems}
+              isAudioPlaying={session.isAiSpeaking || hasAudioVolume}
+              className="max-h-44 border-t border-border"
+            />
+          )}
 
           {/* Error state */}
           {showError && session.error && (
-            <div className="px-4 py-3 border-t border-border shrink-0" data-testid="briefing-error">
-              <div className="flex items-start gap-2 text-sm">
+            <div className="px-6 py-4 border-t border-border shrink-0" data-testid="briefing-error">
+              <div className="flex items-start gap-3 text-sm">
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-destructive font-medium">{session.error.message}</p>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-3">
                     {isRetryableError(session.error) && (
                       <Button
                         variant="outline"
@@ -180,7 +216,7 @@ export function BriefingOverlay({
 
           {/* Ended state */}
           {session.status === "ended" && (
-            <div className="px-4 py-3 border-t border-border shrink-0" data-testid="briefing-ended">
+            <div className="px-6 py-4 border-t border-border shrink-0" data-testid="briefing-ended">
               <div className="flex justify-center">
                 <Button
                   variant="outline"
@@ -195,29 +231,45 @@ export function BriefingOverlay({
             </div>
           )}
 
-          {/* Bottom section: visualizer + controls */}
+          {/* Floating action dock */}
           {showControls && (
-            <div className="border-t border-border py-4 space-y-3 shrink-0">
-              {/* Grid visualizer — centered, prominent */}
-              <div className="flex justify-center">
-                <GridVisualizer
-                  state={gridState}
-                  volumeBands={volumeBands}
-                  size="lg"
-                  className="text-primary"
-                />
-              </div>
-
-              {/* Voice controls — timer, mute, end */}
-              <BriefingControls
-                status={session.status}
-                isMuted={session.isMuted}
-                isAiSpeaking={session.isAiSpeaking}
-                elapsedSeconds={session.elapsedSeconds}
-                onToggleMute={session.toggleMute}
-                onEnd={handleClose}
-                onStopResponse={session.stopCurrentResponse}
-              />
+            <div className="absolute bottom-6 right-6 flex items-center gap-2">
+              {session.isAiSpeaking && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={session.stopCurrentResponse}
+                  data-testid="briefing-stop-button"
+                  aria-label="Stop speaking"
+                  className="rounded-full bg-background/80 backdrop-blur"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant={session.isMuted ? "destructive" : "outline"}
+                size="icon"
+                onClick={session.toggleMute}
+                data-testid="briefing-mute-button"
+                aria-label={session.isMuted ? "Unmute microphone" : "Mute microphone"}
+                className="rounded-full bg-background/80 backdrop-blur"
+              >
+                {session.isMuted ? (
+                  <MicOff className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={handleClose}
+                data-testid="briefing-end-button"
+                aria-label="End briefing"
+                className="rounded-full"
+              >
+                <PhoneOff className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </div>
