@@ -3,7 +3,15 @@
 import { useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { X, AlertTriangle, RefreshCw, Mic, MicOff, PhoneOff, Square } from "lucide-react";
+import {
+  X,
+  AlertTriangle,
+  RefreshCw,
+  Mic,
+  MicOff,
+  PhoneOff,
+  Square,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBriefingSession } from "@/hooks/use-briefing-session";
 import type { BriefingUiError, BriefingStatus } from "@/hooks/use-briefing-session";
@@ -168,7 +176,7 @@ export function BriefingOverlay({
 
           {/* Center stage: native audio visualizer. */}
           {showControls && (
-            <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-10">
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-6 px-6 pb-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -178,6 +186,49 @@ export function BriefingOverlay({
                 <GridVisualizer state={gridState} volumeBands={volumeBands} size="xl" />
               </motion.div>
               <BriefingStatusIndicator state={gridState} />
+              <div
+                className="grid grid-cols-3 items-center justify-center gap-2"
+                data-testid="briefing-control-dock"
+              >
+                {session.isAiSpeaking ? (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={session.stopCurrentResponse}
+                    data-testid="briefing-stop-button"
+                    aria-label="Stop speaking"
+                    className="rounded-full bg-background/80 backdrop-blur"
+                  >
+                    <Square className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <span className="size-8" aria-hidden="true" />
+                )}
+                <Button
+                  variant={session.isMuted ? "destructive" : "outline"}
+                  size="icon"
+                  onClick={session.toggleMute}
+                  data-testid="briefing-mute-button"
+                  aria-label={session.isMuted ? "Unmute microphone" : "Mute microphone"}
+                  className="rounded-full bg-background/80 backdrop-blur"
+                >
+                  {session.isMuted ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={handleClose}
+                  data-testid="briefing-end-button"
+                  aria-label="End briefing"
+                  className="rounded-full"
+                >
+                  <PhoneOff className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
 
@@ -228,48 +279,6 @@ export function BriefingOverlay({
                   Start Again
                 </Button>
               </div>
-            </div>
-          )}
-
-          {/* Floating action dock */}
-          {showControls && (
-            <div className="absolute bottom-6 right-6 flex items-center gap-2">
-              {session.isAiSpeaking && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={session.stopCurrentResponse}
-                  data-testid="briefing-stop-button"
-                  aria-label="Stop speaking"
-                  className="rounded-full bg-background/80 backdrop-blur"
-                >
-                  <Square className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                variant={session.isMuted ? "destructive" : "outline"}
-                size="icon"
-                onClick={session.toggleMute}
-                data-testid="briefing-mute-button"
-                aria-label={session.isMuted ? "Unmute microphone" : "Mute microphone"}
-                className="rounded-full bg-background/80 backdrop-blur"
-              >
-                {session.isMuted ? (
-                  <MicOff className="h-4 w-4" />
-                ) : (
-                  <Mic className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="destructive"
-                size="icon"
-                onClick={handleClose}
-                data-testid="briefing-end-button"
-                aria-label="End briefing"
-                className="rounded-full"
-              >
-                <PhoneOff className="h-4 w-4" />
-              </Button>
             </div>
           )}
         </div>

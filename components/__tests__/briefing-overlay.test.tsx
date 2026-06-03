@@ -180,6 +180,11 @@ describe("BriefingOverlay", () => {
     render(<BriefingOverlay {...defaultProps} />);
     expect(screen.getByTestId("grid-visualizer")).toBeInTheDocument();
     expect(screen.getByTestId("briefing-status-indicator")).toBeInTheDocument();
+    expect(screen.getByTestId("briefing-control-dock")).toHaveClass(
+      "grid",
+      "grid-cols-3",
+      "justify-center",
+    );
     expect(screen.queryByTestId("briefing-text-input")).not.toBeInTheDocument();
     expect(screen.queryByTestId("briefing-send-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("transcript-feed")).not.toBeInTheDocument();
@@ -228,6 +233,7 @@ describe("BriefingOverlay", () => {
       "speaking",
     );
     expect(screen.getByTestId("briefing-status-label")).toHaveTextContent("Speaking");
+    expect(screen.getByTestId("briefing-status-label")).toHaveClass("text-sm");
   });
 
   it("shows listening status while active and waiting", () => {

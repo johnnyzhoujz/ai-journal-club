@@ -38,7 +38,7 @@ export function BriefingStatusIndicator({
       data-testid="briefing-status-indicator"
       data-state={state}
     >
-      <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+      <span className="relative flex h-2 w-2" aria-hidden="true">
         {(state === "speaking" || state === "listening") && (
           <span
             className={cn(
@@ -47,7 +47,7 @@ export function BriefingStatusIndicator({
             )}
           />
         )}
-        <span className={cn("relative inline-flex h-2.5 w-2.5 rounded-full", dot)} />
+        <span className={cn("relative inline-flex h-2 w-2 rounded-full", dot)} />
       </span>
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
@@ -56,8 +56,7 @@ export function BriefingStatusIndicator({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.2 }}
-          className={cn("text-2xl tracking-tight", copy.tone)}
-          style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+          className={cn("text-sm font-medium", copy.tone)}
           data-testid="briefing-status-label"
         >
           {copy.label}
