@@ -166,11 +166,28 @@ describe("BriefingOverlay", () => {
       status: "active",
       canSendText: true,
       briefingSessionId: "sess-1",
+      transcriptItems: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          text: "This transcript should stay hidden by default.",
+          status: "complete",
+          itemId: "item-1",
+          previousItemId: null,
+        },
+      ],
     };
     render(<BriefingOverlay {...defaultProps} />);
     expect(screen.getByTestId("grid-visualizer")).toBeInTheDocument();
+    expect(screen.getByTestId("briefing-status-indicator")).toBeInTheDocument();
+    expect(screen.getByTestId("briefing-control-dock")).toHaveClass(
+      "grid",
+      "grid-cols-3",
+      "justify-center",
+    );
     expect(screen.queryByTestId("briefing-text-input")).not.toBeInTheDocument();
     expect(screen.queryByTestId("briefing-send-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("transcript-feed")).not.toBeInTheDocument();
   });
 
   it("keeps typed fallback controls hidden when canSendText is false", () => {
@@ -202,6 +219,46 @@ describe("BriefingOverlay", () => {
     };
     render(<BriefingOverlay {...defaultProps} />);
     expect(screen.getByTestId("briefing-mute-button")).toBeInTheDocument();
+  });
+
+  it("shows speaking status while AI audio is active", () => {
+    sessionOverrides = {
+      status: "active",
+      isAiSpeaking: true,
+      briefingSessionId: "sess-1",
+    };
+    render(<BriefingOverlay {...defaultProps} />);
+    expect(screen.getByTestId("briefing-status-indicator")).toHaveAttribute(
+      "data-state",
+      "speaking",
+    );
+    expect(screen.getByTestId("briefing-status-label")).toHaveTextContent("Speaking");
+    expect(screen.getByTestId("briefing-status-label")).toHaveClass("text-sm");
+  });
+
+  it("shows listening status while active and waiting", () => {
+    sessionOverrides = {
+      status: "active",
+      briefingSessionId: "sess-1",
+    };
+    render(<BriefingOverlay {...defaultProps} />);
+    expect(screen.getByTestId("briefing-status-indicator")).toHaveAttribute(
+      "data-state",
+      "listening",
+    );
+    expect(screen.getByTestId("briefing-status-label")).toHaveTextContent("Listening");
+  });
+
+  it("shows connecting status during startup", () => {
+    sessionOverrides = {
+      status: "connecting",
+    };
+    render(<BriefingOverlay {...defaultProps} />);
+    expect(screen.getByTestId("briefing-status-indicator")).toHaveAttribute(
+      "data-state",
+      "connecting",
+    );
+    expect(screen.getByTestId("briefing-status-label")).toHaveTextContent("Connecting...");
   });
 
   it("toggles mute when mute button is clicked", async () => {

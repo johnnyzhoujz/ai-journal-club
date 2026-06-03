@@ -43,6 +43,12 @@ Vercel and Neon may also create provider-specific database variables such as
 `DATABASE_NEON_PROJECT_ID`. They can stay in the Vercel project, but this app
 does not read them directly.
 
+## Optional UI Flags
+
+| Variable | Add it when you want |
+| --- | --- |
+| `NEXT_PUBLIC_BRIEFING_TRANSCRIPT_ENABLED=false` | Keep `false` to use the visual voice briefing without the live transcript feed. Set to `true` only to restore the transcript feed. |
+
 ## Optional Source Providers
 
 | Variable | Add it when you want |
