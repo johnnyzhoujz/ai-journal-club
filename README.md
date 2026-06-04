@@ -26,6 +26,7 @@ archive of papers, digests, and voice-ready context.
 - One-click Vercel plus Neon deployment with schema setup and scheduled workers
   handled during deployment.
 
+
 ## One-Click Vercel Setup
 
 Click **Deploy with Vercel** and accept the Neon database integration. Vercel
@@ -62,39 +63,6 @@ Optional source keys can be added later in Vercel Project Settings:
 You should not need to create tables, paste database URLs, configure cron jobs,
 or turn on the default memory and evidence features by hand. Leave the pre-filled
 defaults as `true`.
-
-## Content and Copyright
-
-AI Journal Club is designed for educational and informational purposes. It helps
-users understand, summarize, search, and discuss papers from configured upstream
-sources.
-
-The app stores paper metadata, source links, abstracts, generated digests,
-knowledge notes, and other generated outputs. For private retrieval, evidence
-search, and synthesis, it may also cache extracted full text and derived chunks
-inside the user's deployment database. The app does not store or serve source
-PDFs, is not designed to expose raw cached full text wholesale through the
-normal UI or API, and is not designed to operate as a public full-text paper
-archive, PDF host, or replacement distribution channel for source papers.
-
-All source works remain owned by their respective authors, publishers,
-platforms, or rights holders. The MIT license in this repository applies only to
-the AI Journal Club software code and does not grant rights to third-party
-papers, datasets, articles, media, or other source materials accessed through
-the app.
-
-Users are responsible for ensuring that their use of configured sources complies
-with applicable laws, licenses, and platform terms. Generated outputs should
-cite and link back to the original source rather than replace it.
-
-## Acknowledgements
-
-AI Journal Club began as an early fork and substantial rework of
-[Follow Builders](https://github.com/zarazhangrui/follow-builders), an
-MIT-licensed AI builders digest project. See [NOTICE.md](NOTICE.md) for
-third-party notice details. The current app has since been redesigned around
-private paper ingestion, retrieval, evidence search, voice briefings, and
-self-hosted Vercel/Neon deployment.
 
 ## Updating an Existing Deployment
 
@@ -149,3 +117,36 @@ digests, deployment URLs, database dumps, or local env files.
 See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md),
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and
 [docs/DATABASE.md](docs/DATABASE.md) for operator details.
+
+## Content and Copyright
+
+AI Journal Club is designed for educational and informational purposes. It helps
+users understand, summarize, search, and discuss papers from configured upstream
+sources.
+
+The app stores paper metadata, source links, abstracts, generated digests,
+knowledge notes, and other generated outputs. For private retrieval, evidence
+search, and synthesis, it may also cache extracted full text and derived chunks
+inside the user's deployment database. The app does not store or serve source
+PDFs, is not designed to expose raw cached full text wholesale through the
+normal UI or API, and is not designed to operate as a public full-text paper
+archive, PDF host, or replacement distribution channel for source papers.
+
+All source works remain owned by their respective authors, publishers,
+platforms, or rights holders. The MIT license in this repository applies only to
+the AI Journal Club software code and does not grant rights to third-party
+papers, datasets, articles, media, or other source materials accessed through
+the app.
+
+Users are responsible for ensuring that their use of configured sources complies
+with applicable laws, licenses, and platform terms. Generated outputs should
+cite and link back to the original source rather than replace it.
+
+## Acknowledgements
+
+AI Journal Club began as an early fork and substantial rework of
+[Follow Builders](https://github.com/zarazhangrui/follow-builders), an
+MIT-licensed AI builders digest project. See [NOTICE.md](NOTICE.md) for
+third-party notice details. The current app has since been redesigned around
+private paper ingestion, retrieval, evidence search, voice briefings, and
+self-hosted Vercel/Neon deployment.
