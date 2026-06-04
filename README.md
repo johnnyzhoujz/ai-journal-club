@@ -26,8 +26,6 @@ archive of papers, digests, and voice-ready context.
 - One-click Vercel plus Neon deployment with schema setup and scheduled workers
   handled during deployment.
 
-  https://x.com/johnnyzhoujz/status/2062347954321866993?s=20
-
 
 ## One-Click Vercel Setup
 
