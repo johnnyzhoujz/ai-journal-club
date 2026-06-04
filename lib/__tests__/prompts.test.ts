@@ -44,7 +44,7 @@ describe("journal-club prompt contracts", () => {
     expect(DIGEST_INTRO).toContain("research papers as the primary evidence base");
   });
 
-  it("keeps research answers source-grounded and paper-first", () => {
+  it("keeps paper answers source-grounded and paper-first", () => {
     expect(RESEARCH_ANSWER).toContain("research papers");
     expect(RESEARCH_ANSWER).toContain("supporting context");
     expect(RESEARCH_ANSWER).toContain("Prefer paper evidence");

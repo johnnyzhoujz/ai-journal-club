@@ -2,7 +2,7 @@
   "name": "ai-journal-club",
   "version": "0.1.0",
   "private": false,
-  "description": "An open-source AI research digest and journal club app.",
+  "description": "An open-source AI papers digest and journal club app.",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",

@@ -1,9 +1,9 @@
 # AI Journal Club
 
-AI Journal Club turns the daily flood of AI papers into a private research
-briefing you can read, search, and talk through. Deploy it once, add your API
-keys, choose your sources, and let the app build a living archive of papers,
-digests, and voice-ready context.
+AI Journal Club turns the daily flood of AI papers into a private educational
+and informational briefing you can read, search, and talk through. Deploy it
+once, add your API keys, choose your sources, and let the app build a living
+archive of papers, digests, and voice-ready context.
 
 <p>
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club&project-name=ai-journal-club&repository-name=ai-journal-club&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%5D&env=PAPER_SEMANTIC_ENRICHMENT_ENABLED%2CMEMORY_VECTOR_ENABLED%2CMEMORY_CHUNK_WRITES_ENABLED%2CMEMORY_READS_ENABLED%2CPAPER_EVIDENCE_LAYER_ENABLED&envDefaults=%7B%22PAPER_SEMANTIC_ENRICHMENT_ENABLED%22%3A%22true%22%2C%22MEMORY_VECTOR_ENABLED%22%3A%22true%22%2C%22MEMORY_CHUNK_WRITES_ENABLED%22%3A%22true%22%2C%22MEMORY_READS_ENABLED%22%3A%22true%22%2C%22PAPER_EVIDENCE_LAYER_ENABLED%22%3A%22true%22%7D&envDescription=Accept+Neon+and+deploy.+The+first+setup+page+will+show+the+app+environment+variables+to+add+in+one+pass.&envLink=https%3A%2F%2Fgithub.com%2Fjohnnyzhoujz%2Fai-journal-club%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md">
@@ -13,13 +13,13 @@ digests, and voice-ready context.
 
 ## What You Get
 
-- A daily AI research digest that turns papers, newsletters, podcasts, X posts,
+- A daily AI papers digest that turns papers, newsletters, podcasts, X posts,
   and videos into one readable briefing.
 - A realtime voice journal club that can explain the latest papers out loud and
   answer follow-up questions while you interrupt naturally.
 - Voice follow-ups that can go deeper on paper methods, results, limitations,
   related work, and "what should I read next?" questions.
-- Persistent research memory, semantic enrichment, and vector search enabled by
+- Persistent paper memory, semantic enrichment, and vector search enabled by
   default on new deployments.
 - Source management for public paper feeds, newsletters, podcasts, X accounts,
   YouTube channels, and YouTube playlists.
@@ -60,8 +60,41 @@ Optional source keys can be added later in Vercel Project Settings:
 | `SUPADATA_API_KEY` | YouTube, playlist, podcast, and transcript ingestion. |
 
 You should not need to create tables, paste database URLs, configure cron jobs,
-or turn on the default research-memory features by hand. Leave the pre-filled
+or turn on the default memory and evidence features by hand. Leave the pre-filled
 defaults as `true`.
+
+## Content and Copyright
+
+AI Journal Club is designed for educational and informational purposes. It helps
+users understand, summarize, search, and discuss papers from configured upstream
+sources.
+
+The app stores paper metadata, source links, abstracts, generated digests,
+knowledge notes, and other generated outputs. For private retrieval, evidence
+search, and synthesis, it may also cache extracted full text and derived chunks
+inside the user's deployment database. The app does not store or serve source
+PDFs, is not designed to expose raw cached full text wholesale through the
+normal UI or API, and is not designed to operate as a public full-text paper
+archive, PDF host, or replacement distribution channel for source papers.
+
+All source works remain owned by their respective authors, publishers,
+platforms, or rights holders. The MIT license in this repository applies only to
+the AI Journal Club software code and does not grant rights to third-party
+papers, datasets, articles, media, or other source materials accessed through
+the app.
+
+Users are responsible for ensuring that their use of configured sources complies
+with applicable laws, licenses, and platform terms. Generated outputs should
+cite and link back to the original source rather than replace it.
+
+## Acknowledgements
+
+AI Journal Club began as an early fork and substantial rework of
+[Follow Builders](https://github.com/zarazhangrui/follow-builders), an
+MIT-licensed AI builders digest project. See [NOTICE.md](NOTICE.md) for
+third-party notice details. The current app has since been redesigned around
+private paper ingestion, retrieval, evidence search, voice briefings, and
+self-hosted Vercel/Neon deployment.
 
 ## Updating an Existing Deployment
 

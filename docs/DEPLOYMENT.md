@@ -7,9 +7,9 @@ and create a Vercel project. The button requests the Neon native storage
 integration with the `neon` product. That integration provisions Postgres and
 injects `DATABASE_URL` and `DATABASE_URL_UNPOOLED` before the Vercel build runs.
 
-The deploy form only asks you to accept Neon and leave the default
-research-memory and paper-evidence flags pre-filled as `true`. The app values
-are added after the first deploy from the setup page.
+The deploy form only asks you to accept Neon and leave the default memory and
+paper-evidence flags pre-filled as `true`. The app values are added after the
+first deploy from the setup page.
 
 ## First Deploy
 
@@ -35,6 +35,12 @@ For local development against the same project, pull environment variables:
 ```bash
 vercel env pull .env.local
 ```
+
+## Source Use and Copyright
+
+AI Journal Club is intended for educational and informational use. It links back
+to original sources and may cache extracted text for private search and
+synthesis, but it is not a PDF host or public full-text redistribution service.
 
 ## Updating an Existing Deployment
 

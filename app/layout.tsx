@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "AI Journal Club",
-  description: "Open-source AI research digest and journal club app",
+  description: "Open-source AI papers digest and journal club app",
 };
 
 export default function RootLayout({
