@@ -25,3 +25,7 @@ After setup, the schema exists but content tables are empty:
 
 Add sources through the Sources page, then fetch content through the dashboard or
 scheduled jobs.
+
+AI Journal Club is intended for educational and informational use. It links back
+to original sources and may cache extracted text for private search and
+synthesis, but it is not a PDF host or public full-text redistribution service.
